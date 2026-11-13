@@ -1,0 +1,6 @@
+# Delta applied after config-6.6.8-minimal (memory-bug and locking labs). ~3x slower guest.
+CONFIG_KASAN=y
+CONFIG_KASAN_GENERIC=y
+CONFIG_KASAN_OUTLINE=y
+CONFIG_PROVE_LOCKING=y
+CONFIG_DEBUG_KMEMLEAK=y

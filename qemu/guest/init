@@ -1,0 +1,17 @@
+#!/bin/sh
+# PID 1 of the grading guest. Waits for a per-run nonce from the host (fw_cfg), then runs the tests.
+export PATH=/bin
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t devtmpfs none /dev
+exec </dev/console >/dev/console 2>&1
+GO=/sys/firmware/qemu_fw_cfg/by_name/opt/grader/go/raw
+echo "@@READY"
+while N=$(cat $GO) && [ "$N" = 00000000000000000000000000000000 ]; do usleep 20000; done
+if [ -n "$N" ] && mount -t 9p -o trans=virtio,version=9p2000.L,ro shared /mnt; then
+	sh /mnt/test_runner.sh "$N"
+	echo "@@GRADER:$N:DONE"
+else
+	echo "@@GRADER:$N:SETUP_FAILED"
+fi
+reboot -f

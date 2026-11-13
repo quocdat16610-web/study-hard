@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+qemu/kernels/vmlinuz-*
+qemu/initrds/*.cpio.gz
+qemu/snapshots/*.vmstate
+qemu/runtimes/
+qemu/logs/
+tests/fixtures/**/*.ko
+tests/fixtures/**/*.o
+tests/fixtures/**/*.elf

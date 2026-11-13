@@ -1,0 +1,14 @@
+{
+  "vm": {"mode": "module", "kernel": "6.6.8-minimal", "initrd": "base", "artifact": "student.ko",
+         "mem_mb": 256, "smp": 1, "timeout": 30},
+  "tests": [
+    {"id": "load",     "points": 25, "concept": "module_init phải trả về 0; lỗi ở đây thường do symbol chưa export hoặc sai vermagic"},
+    {"id": "listed",   "points": 5,  "concept": "kernel quản lý module đã nạp qua danh sách trong /proc/modules"},
+    {"id": "init_log", "points": 20, "concept": "printk/pr_info ghi vào ring buffer của kernel, không phải stdout"},
+    {"id": "license",  "points": 10, "concept": "MODULE_LICENSE quyết định module có làm taint kernel và dùng được symbol GPL không"},
+    {"id": "unload",   "points": 20, "concept": "module_exit phải giải phóng mọi tài nguyên đã đăng ký trong init"},
+    {"id": "exit_log", "points": 10, "concept": "hàm exit chạy trong ngữ cảnh rmmod"},
+    {"id": "clean",    "points": 10, "concept": "refcount của module phải về 0 thì mới gỡ được"}
+  ],
+  "penalties": {"panic": 60, "hang": 40, "crash": 40, "warn": 10}
+}
