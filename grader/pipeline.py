@@ -1,0 +1,63 @@
+"""One submission, start to finish: pre-check -> compile -> static -> dynamic. Scoring/feedback hook in after."""
+from __future__ import annotations
+
+import json
+import logging
+import re
+import shutil
+import sys
+from pathlib import Path
+
+from . import compiler, dynamic, labs, precheck, static
+from .config import CFG
+from .sandbox.container import own
+
+ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+log = logging.getLogger("grader")
+
+
+def grade(sub: dict) -> dict:
+    """sub = {"id", "lab", "files": {name: text}} -> report. Never raises for student-caused failures."""
+    sid = sub["id"]
+    if not ID.fullmatch(sid):
+        raise ValueError("bad submission id")
+    lab = labs.load(sub["lab"])
+    files: dict[str, str] = sub["files"]
+    stages: dict = {}
+    report = {"id": sid, "lab": lab["id"], "mode": lab["mode"], "status": "done", "stages": stages}
+    stages["precheck"] = pre = precheck.check(lab, files)
+    if not pre.ok:
+        report["status"] = "rejected"
+        return _json(report)
+    work = CFG.work_root / sid
+    work.mkdir(mode=0o700)
+    try:
+        for name, text in files.items():
+            (work / name).write_text(text, encoding="utf-8")
+        for name, data in labs.scaffold(lab).items():  # scaffold always wins over a same-named upload
+            (work / name).write_bytes(data)
+        own(work)
+        stages["compile"] = comp = compiler.build(lab, work)
+        stages["static"] = static.analyze(lab, work, files)
+        if comp.ok:
+            stages["dynamic"] = dynamic.run(lab, work, sid, set(files))
+        else:
+            report["status"] = "compile_error"
+    except Exception as e:  # infrastructure, not the student: never scored, never shown verbatim
+        log.exception("submission %s failed", sid)
+        report |= {"status": "infra_error", "error": f"{type(e).__name__}: {e}"[:500]}
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return _json(report)
+
+
+def _json(report: dict) -> dict:
+    report["stages"] = {k: v.json() for k, v in report["stages"].items()}
+    return report
+
+
+if __name__ == "__main__":  # python -m grader.pipeline <lab> <file>... : grade locally, no queue
+    import uuid
+    paths = [Path(p) for p in sys.argv[2:]]
+    json.dump(grade({"id": uuid.uuid4().hex, "lab": sys.argv[1],
+                     "files": {p.name: p.read_text() for p in paths}}), sys.stdout, ensure_ascii=False, indent=1)

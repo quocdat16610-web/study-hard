@@ -144,7 +144,9 @@ def run(sid: str, tpl: str, artifact: Path) -> dict:
     toy = vm["mode"] == "toy"
     rt = _runtime(sid)
     try:
-        shutil.copyfile(artifact, rt / "shared" / vm["artifact"])
+        with open(os.open(artifact, os.O_RDONLY | os.O_NOFOLLOW), "rb") as src, \
+                open(rt / "shared" / vm["artifact"], "wb") as dst:
+            shutil.copyfileobj(src, dst)
         if not toy:
             shutil.copyfile(d / "test_runner.sh", rt / "shared/test_runner.sh")
         if (d / "prepare.sh").exists():

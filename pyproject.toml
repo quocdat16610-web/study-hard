@@ -2,6 +2,7 @@
 name = "grader"
 version = "0.1.0"
 requires-python = ">=3.12"
+dependencies = ["redis>=5", "fastapi>=0.110", "uvicorn>=0.29"]
 
 [tool.setuptools]
 packages = ["grader", "grader.sandbox"]

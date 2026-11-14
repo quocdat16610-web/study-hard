@@ -1,0 +1,16 @@
+{
+  "mode": "user",
+  "title": "Quản lý bộ nhớ động bằng smart pointer",
+  "statement": "Đọc n rồi n số nguyên. Lưu vào vùng nhớ cấp phát động do std::unique_ptr quản lý. In dãy theo thứ tự ngược trên một dòng, dòng sau in tổng.",
+  "std": "c++20",
+  "files": {"required": ["main.cpp"], "only": ["main.cpp"], "max_bytes": 32768},
+  "rules": ["no-raw-new", "no-malloc"],
+  "limits": {"timeout": 2, "mem_mb": 256},
+  "tests": [
+    {"id": "small",  "stdin": "3\n1 2 3\n",         "stdout": "3 2 1\n6\n",        "points": 30},
+    {"id": "single", "stdin": "1\n-7\n",            "stdout": "-7\n-7\n",          "points": 20},
+    {"id": "empty",  "stdin": "0\n",                "stdout": "\n0\n",             "points": 20},
+    {"id": "large",  "stdin": "5\n10 20 30 40 50\n", "stdout": "50 40 30 20 10\n150\n", "points": 30}
+  ],
+  "weights": {"compile": 10, "static": 20, "dynamic": 70}
+}

@@ -1,0 +1,8 @@
+{
+  "mode": "module",
+  "template": "module-basic",
+  "title": "Kernel module đầu tiên",
+  "statement": "Viết module `student`: khi nạp in `student: init`, khi gỡ in `student: exit` vào kernel log. Giấy phép GPL.",
+  "files": {"required": ["student.c"], "only": ["student.c"], "max_bytes": 16384},
+  "weights": {"compile": 15, "static": 15, "dynamic": 70}
+}

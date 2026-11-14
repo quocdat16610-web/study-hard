@@ -1,0 +1,8 @@
+{
+  "mode": "toy",
+  "template": "toy-kernel",
+  "title": "Toy kernel: boot, VGA, bàn phím",
+  "statement": "Viết kernel Multiboot 32-bit: gửi `BOOT OK` ra COM1, in `Hello, kernel` ở dòng đầu màn hình VGA, rồi hiển thị phím gõ ở dòng thứ hai (polling PS/2).",
+  "files": {"required": ["boot.S", "kernel.cpp"], "max_bytes": 65536},
+  "weights": {"compile": 15, "static": 15, "dynamic": 70}
+}

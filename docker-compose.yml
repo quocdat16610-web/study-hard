@@ -1,0 +1,53 @@
+# Redis + API + worker. The worker's bind mounts are resolved by the HOST Docker daemon,
+# so /opt/grader and /var/lib/grader/work must be mounted at identical paths.
+# Required env (.env): GRADER_API_KEY, GRADER_UID, GRADER_GID, DOCKER_GID, KVM_GID
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    networks: [internal]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  api:
+    build: {context: ., dockerfile: images/app/Dockerfile}
+    image: grader-app
+    command: ["uvicorn", "grader.api:app", "--host", "0.0.0.0", "--port", "8000", "--limit-concurrency", "64"]
+    environment:
+      GRADER_API_KEY: ${GRADER_API_KEY:?}
+      GRADER_REDIS_URL: redis://redis:6379/0
+    volumes: ["/opt/grader/labs:/opt/grader/labs:ro", "/opt/grader/qemu/templates:/opt/grader/qemu/templates:ro"]
+    ports: ["127.0.0.1:8000:8000"]
+    networks: [internal, edge]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on: [redis]
+    restart: unless-stopped
+
+  worker:
+    image: grader-app
+    command: ["python", "-m", "grader.worker"]
+    hostname: worker-1  # stable id: a restarted worker reclaims its own in-flight job
+    user: "${GRADER_UID:?}:${GRADER_GID:?}"
+    group_add: ["${DOCKER_GID:?}", "${KVM_GID:?}"]
+    environment:
+      GRADER_REDIS_URL: redis://redis:6379/0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/grader:/opt/grader
+      - /var/lib/grader/work:/var/lib/grader/work
+    devices: ["/dev/kvm"]
+    networks: [internal]
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on: [redis]
+    restart: unless-stopped
+
+networks:
+  internal: {internal: true}
+  edge: {}

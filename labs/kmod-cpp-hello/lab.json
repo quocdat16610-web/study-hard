@@ -1,0 +1,8 @@
+{
+  "mode": "module",
+  "template": "module-basic",
+  "title": "Kernel module bằng C++ (freestanding)",
+  "statement": "Viết student.cpp cài đặt student_init/student_exit (xem kapi.h). Không có thư viện chuẩn, exception hay RTTI: tự định nghĩa operator new/delete trên kalloc/kfree_. In `student: init` và `student: exit`.",
+  "files": {"required": ["student.cpp"], "only": ["student.cpp"], "max_bytes": 16384},
+  "weights": {"compile": 15, "static": 15, "dynamic": 70}
+}
