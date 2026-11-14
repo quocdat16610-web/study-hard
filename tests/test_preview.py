@@ -61,10 +61,12 @@ def test_try_run_module_shows_kernel_console(kernel):
 
 
 def test_every_starter_passes_precheck_and_builds(kernel):
+    todo = {"kmod-hello": {"module-license"}}  # left for the student on purpose
     from grader import labs, precheck
     for entry in labs.listing():
         d = labs.describe(entry["id"])
         assert set(d["files"]) <= set(d["starter"]), entry["id"]
         assert precheck.check(labs.load(entry["id"]), d["starter"]).ok, entry["id"]
         r = pipeline.try_run({"id": uuid.uuid4().hex, "lab": entry["id"], "files": d["starter"]})
-        assert r["stages"]["compile"]["ok"], (entry["id"], r["stages"]["compile"]["diags"])
+        rules = {d["rule"] for d in r["stages"]["compile"]["diags"]}
+        assert rules == todo.get(entry["id"], set()), (entry["id"], r["stages"]["compile"]["diags"])

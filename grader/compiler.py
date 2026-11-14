@@ -117,6 +117,8 @@ def _module(lab: dict, work: Path) -> Stage:
                                enumerate((work / f).read_text(errors="replace").splitlines(), 1)
                                if "MODULE_LICENSE" in text), ("", 0))
             extra.append(Diag(file, line, 0, "error", lic[0], "module-license"))
+    if "missing MODULE_LICENSE" in out:
+        extra.append(Diag("", 0, 0, "error", "chưa khai báo", "module-license"))
     st = _stage(r, work, "student.ko", extra)
     st.data["vermagic"] = out.split("@@META\n")[1].splitlines()[0] if "@@META\n" in out else None
     return st
