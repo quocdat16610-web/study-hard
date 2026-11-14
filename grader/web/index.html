@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OS Lab</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header>
+  <h1>OS Lab</h1>
+  <label class="grow"><span class="sr">Bài lab</span><select id="lab"></select></label>
+  <button id="key-btn" class="ghost" type="button">API key</button>
+</header>
+
+<main>
+  <section id="work" aria-label="Soạn mã">
+    <p id="statement"></p>
+    <div id="tabs" role="tablist"></div>
+    <div id="editor">
+      <pre id="gutter" aria-hidden="true"></pre>
+      <textarea id="code" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" aria-label="Mã nguồn"></textarea>
+    </div>
+    <div id="inputs">
+      <label id="stdin-box" hidden>Input (stdin) khi chạy thử<textarea id="stdin" rows="2" spellcheck="false"></textarea></label>
+      <label id="keys-box" hidden>Phím gõ vào kernel sau khi boot<input id="keys" type="text" value="hi" spellcheck="false" autocomplete="off"></label>
+    </div>
+    <div id="actions">
+      <button id="run" type="button" class="primary">▶ Chạy thử</button>
+      <button id="submit" type="button">Nộp bài chấm điểm</button>
+      <button id="reset" type="button" class="ghost">Khôi phục mã ban đầu</button>
+      <span id="busy" role="status" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <section id="result" aria-label="Kết quả" aria-live="polite">
+    <p class="empty">Bấm <b>Chạy thử</b> để xem chương trình hoặc kernel của bạn in ra gì. Bấm <b>Nộp bài</b> để chấm điểm và nhận nhận xét.</p>
+  </section>
+</main>
+
+<dialog id="key-dialog">
+  <form method="dialog">
+    <h2>API key</h2>
+    <p>Trang thử nghiệm này gọi thẳng API của trình chấm. Key chỉ lưu trong tab hiện tại.</p>
+    <input id="key" type="password" autocomplete="off" aria-label="API key" required>
+    <p id="key-error" hidden>Key không đúng.</p>
+    <button class="primary">Lưu</button>
+  </form>
+</dialog>
+<script src="app.js"></script>
+</body>
+</html>

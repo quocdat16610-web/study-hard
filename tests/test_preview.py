@@ -58,3 +58,13 @@ def test_try_run_toy_kernel_shows_typed_keys(kernel):
 def test_try_run_module_shows_kernel_console(kernel):
     r = pipeline.try_run(job("kmod-hello", **{"student.c": "module-hello/student.c"}))
     assert "student: init" in r["preview"]["log"] and "@@GRADER" not in r["preview"]["log"]
+
+
+def test_every_starter_passes_precheck_and_builds(kernel):
+    from grader import labs, precheck
+    for entry in labs.listing():
+        d = labs.describe(entry["id"])
+        assert set(d["files"]) <= set(d["starter"]), entry["id"]
+        assert precheck.check(labs.load(entry["id"]), d["starter"]).ok, entry["id"]
+        r = pipeline.try_run({"id": uuid.uuid4().hex, "lab": entry["id"], "files": d["starter"]})
+        assert r["stages"]["compile"]["ok"], (entry["id"], r["stages"]["compile"]["diags"])

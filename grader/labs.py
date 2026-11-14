@@ -21,6 +21,24 @@ def load(lab_id: str) -> dict:
     return lab
 
 
+def listing() -> list[dict]:
+    out = []
+    for d in sorted(CFG.labs_root.iterdir()):
+        if NAME.fullmatch(d.name) and (d / "lab.json").is_file():
+            spec = json.loads((d / "lab.json").read_text())
+            out.append({"id": d.name, "title": spec.get("title", d.name), "mode": spec["mode"]})
+    return out
+
+
+def describe(lab_id: str) -> dict:
+    """What a client needs to present a lab: statement, expected files, starter code, read-only scaffold."""
+    lab = load(lab_id)
+    text = lambda sub: {p.name: p.read_text() for p in sorted((lab["dir"] / sub).glob("*")) if p.is_file()}  # noqa: E731
+    return {"id": lab_id, "title": lab.get("title", lab_id), "mode": lab["mode"], "statement": lab.get("statement", ""),
+            "files": lab.get("files", {}).get("required", []), "starter": text("starter"), "scaffold": text("scaffold"),
+            "tests": [{"id": t["id"], "points": t.get("points", 1)} for t in lab["tests"] if not t.get("hidden")]}
+
+
 def scaffold(lab: dict) -> dict[str, bytes]:
     d = lab["dir"] / "scaffold"
     return {p.name: p.read_bytes() for p in sorted(d.iterdir()) if p.is_file()} if d.is_dir() else {}

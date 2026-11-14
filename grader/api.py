@@ -7,7 +7,11 @@ import uuid
 from typing import Annotated
 
 import redis.asyncio as redis
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StringConstraints
 
 from . import feedback, labs, pipeline, queue as q
@@ -18,6 +22,22 @@ if not CFG.api_key:
     raise RuntimeError("GRADER_API_KEY must be set")
 app = FastAPI(title="grader", docs_url=None, redoc_url=None, openapi_url=None)
 db = redis.Redis.from_url(CFG.redis_url, decode_responses=True)
+
+
+CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    resp = await call_next(request)
+    resp.headers.update({"Content-Security-Policy": CSP, "X-Content-Type-Options": "nosniff",
+                         "Referrer-Policy": "no-referrer", "Cache-Control": "no-store"})
+    return resp
+
+
+@app.get("/", include_in_schema=False)
+async def index() -> RedirectResponse:
+    return RedirectResponse("/ui/")
 
 
 class Submission(BaseModel):
@@ -37,6 +57,19 @@ async def guard(request: Request, x_api_key: Annotated[str, Header()] = "") -> N
         raise HTTPException(401)
     if int(request.headers.get("content-length") or 0) > MAX_BODY:
         raise HTTPException(413)
+
+
+@app.get("/labs", dependencies=[Depends(guard)])
+async def list_labs() -> list[dict]:
+    return labs.listing()
+
+
+@app.get("/labs/{lab_id}", dependencies=[Depends(guard)])
+async def get_lab(lab_id: str) -> dict:
+    try:
+        return labs.describe(lab_id)
+    except KeyError:
+        raise HTTPException(404, "unknown lab") from None
 
 
 @app.post("/submissions", status_code=202, dependencies=[Depends(guard)])
@@ -79,3 +112,7 @@ async def full_report(sid: str) -> dict:
     if not pipeline.ID.fullmatch(sid) or (raw := await db.get(q.result(sid))) is None:
         raise HTTPException(404)
     return json.loads(raw)
+
+
+# Minimal demo UI (static files only; every data call above still needs the API key).
+app.mount("/ui", StaticFiles(directory=Path(__file__).parent / "web", html=True), name="ui")
