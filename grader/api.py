@@ -25,7 +25,7 @@ app = FastAPI(title="grader", docs_url=None, redoc_url=None, openapi_url=None)
 db = redis.Redis.from_url(CFG.redis_url, decode_responses=True)
 
 
-CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"
+CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src data:; base-uri 'none'; frame-ancestors 'none'"
 
 
 @app.middleware("http")
@@ -54,7 +54,9 @@ class Run(Submission):
 
 
 class Keys(BaseModel):
-    keys: list[Annotated[str, StringConstraints(pattern=r"^(?:(?:shift|ctrl|alt)\+){0,3}[a-z0-9_]{1,16}$")]] = Field(
+    """Input events in order: key names ("a", "shift+a", "tab"), pointer moves "m:dx,dy", buttons "b:left:1"."""
+    keys: list[Annotated[str, StringConstraints(
+        pattern=r"^(?:(?:(?:shift|ctrl|alt)\+){0,3}[a-z0-9_]{1,16}|m:-?\d{1,3},-?\d{1,3}|b:(?:left|right|middle):[01])$")]] = Field(
         min_length=1, max_length=32)
 
 

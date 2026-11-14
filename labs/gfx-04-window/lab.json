@@ -1,0 +1,264 @@
+{
+ "mode": "toy",
+ "template": "toy-gfx",
+ "track": "Đồ hoạ điểm ảnh",
+ "level": 4,
+ "title": "4. Cửa sổ đồ hoạ",
+ "statement": "Viết `draw_window(x, y, w, h, tiêu_đề, active)`: viền đen 1 điểm; thân `0xC0C0C0`; thanh tiêu đề cao 12 điểm ngay trong viền, màu `0x000080` khi active và `0x808080` khi không; tiêu đề trắng tại (x + 4, y + 3); nút đóng đỏ 8x8 tại (x + w - 11, y + 3). Trên nền `0x008080`, vẽ cửa sổ `FILES` active tại (30, 20) cỡ 180x100, chữ đen `3 ITEMS` tại (36, 40), và cửa sổ `NOTES` không active tại (120, 130) cỡ 150x60.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "tests": [
+  {
+   "id": "mode",
+   "points": 10,
+   "expect": {
+    "size": [
+     320,
+     200
+    ],
+    "serial": "GFX OK"
+   },
+   "concept": "lúc mới boot card VGA ở text mode; kernel phải tự bật chế độ đồ hoạ rồi mới có framebuffer để vẽ"
+  },
+  {
+   "id": "border",
+   "points": 20,
+   "expect": {
+    "rects": [
+     {
+      "x": 30,
+      "y": 20,
+      "w": 180,
+      "h": 1,
+      "rgb": "000000"
+     },
+     {
+      "x": 30,
+      "y": 119,
+      "w": 180,
+      "h": 1,
+      "rgb": "000000"
+     },
+     {
+      "x": 30,
+      "y": 20,
+      "w": 1,
+      "h": 100,
+      "rgb": "000000"
+     },
+     {
+      "x": 209,
+      "y": 20,
+      "w": 1,
+      "h": 100,
+      "rgb": "000000"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 29,
+      "y": 50,
+      "rgb": "008080"
+     },
+     {
+      "x": 210,
+      "y": 50,
+      "rgb": "008080"
+     },
+     {
+      "x": 100,
+      "y": 19,
+      "rgb": "008080"
+     },
+     {
+      "x": 100,
+      "y": 120,
+      "rgb": "008080"
+     }
+    ]
+   },
+   "concept": "viền 1 điểm = hình đen lớn bị hình nhỏ hơn mỗi cạnh 1 điểm đè lên"
+  },
+  {
+   "id": "title-bar",
+   "points": 20,
+   "expect": {
+    "rects": [
+     {
+      "x": 70,
+      "y": 21,
+      "w": 120,
+      "h": 12,
+      "rgb": "000080"
+     },
+     {
+      "x": 31,
+      "y": 21,
+      "w": 3,
+      "h": 12,
+      "rgb": "000080"
+     }
+    ],
+    "bitmaps": [
+     {
+      "x": 34,
+      "y": 23,
+      "rows": [
+       "XXXXX..XXX..X.....XXXXX..XXXX.",
+       "X.......X...X.....X.....X.....",
+       "X.......X...X.....X.....X.....",
+       "XXXX....X...X.....XXXX...XXX..",
+       "X.......X...X.....X.........X.",
+       "X.......X...X.....X.........X.",
+       "X......XXX..XXXXX.XXXXX.XXXX.."
+      ],
+      "on": "ffffff",
+      "off": "000080"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 100,
+      "y": 33,
+      "rgb": "c0c0c0"
+     }
+    ]
+   },
+   "concept": "thanh tiêu đề nằm trong viền: bắt đầu ở (x + 1, y + 1), rộng w - 2"
+  },
+  {
+   "id": "close-button",
+   "points": 15,
+   "expect": {
+    "rects": [
+     {
+      "x": 199,
+      "y": 23,
+      "w": 8,
+      "h": 8,
+      "rgb": "ff0000"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 198,
+      "y": 26,
+      "rgb": "000080"
+     },
+     {
+      "x": 207,
+      "y": 26,
+      "rgb": "000080"
+     },
+     {
+      "x": 203,
+      "y": 22,
+      "rgb": "000080"
+     },
+     {
+      "x": 203,
+      "y": 31,
+      "rgb": "000080"
+     }
+    ]
+   },
+   "concept": "vị trí tính từ mép phải của cửa sổ (x + w - 11) để nút luôn bám góc khi cửa sổ đổi kích thước"
+  },
+  {
+   "id": "body",
+   "points": 15,
+   "expect": {
+    "rects": [
+     {
+      "x": 31,
+      "y": 60,
+      "w": 178,
+      "h": 59,
+      "rgb": "c0c0c0"
+     }
+    ],
+    "bitmaps": [
+     {
+      "x": 36,
+      "y": 40,
+      "rows": [
+       "XXXX.........XXX..XXXXX.XXXXX.X...X..XXXX.",
+       "....X.........X.....X...X.....XX.XX.X.....",
+       "....X.........X.....X...X.....X.X.X.X.....",
+       ".XXX..........X.....X...XXXX..X.X.X..XXX..",
+       "....X.........X.....X...X.....X...X.....X.",
+       "....X.........X.....X...X.....X...X.....X.",
+       "XXXX.........XXX....X...XXXXX.X...X.XXXX.."
+      ],
+      "on": "000000",
+      "off": "c0c0c0"
+     }
+    ]
+   },
+   "concept": "nội dung cửa sổ được vẽ sau khung, bằng toạ độ tính từ gốc cửa sổ"
+  },
+  {
+   "id": "inactive",
+   "points": 20,
+   "expect": {
+    "rects": [
+     {
+      "x": 160,
+      "y": 131,
+      "w": 90,
+      "h": 12,
+      "rgb": "808080"
+     },
+     {
+      "x": 259,
+      "y": 133,
+      "w": 8,
+      "h": 8,
+      "rgb": "ff0000"
+     },
+     {
+      "x": 120,
+      "y": 130,
+      "w": 150,
+      "h": 1,
+      "rgb": "000000"
+     }
+    ],
+    "bitmaps": [
+     {
+      "x": 124,
+      "y": 133,
+      "rows": [
+       "X...X..XXX..XXXXX.XXXXX..XXXX.",
+       "XX..X.X...X...X...X.....X.....",
+       "X.X.X.X...X...X...X.....X.....",
+       "X..XX.X...X...X...XXXX...XXX..",
+       "X...X.X...X...X...X.........X.",
+       "X...X.X...X...X...X.........X.",
+       "X...X..XXX....X...XXXXX.XXXX.."
+      ],
+      "on": "ffffff",
+      "off": "808080"
+     }
+    ]
+   },
+   "concept": "cùng một hàm vẽ mọi cửa sổ; trạng thái active chỉ đổi màu thanh tiêu đề"
+  }
+ ]
+}

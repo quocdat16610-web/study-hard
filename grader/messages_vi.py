@@ -208,7 +208,9 @@ REASONS = {
 }
 SIGNALS = {"SIGSEGV": "truy cập bộ nhớ không hợp lệ", "SIGABRT": "abort (assert/exception không bắt)", "SIGFPE": "lỗi số học, thường là chia cho 0",
            "SIGBUS": "truy cập bộ nhớ sai căn lề", "SIGILL": "lệnh CPU không hợp lệ", "SIGKILL": "bị hệ thống dừng"}
-TOY_MISSED = {"cells": "một ô trên màn hình chưa đúng ký tự hoặc màu",
+TOY_MISSED = {"pixels": "một điểm ảnh trên màn hình chưa đúng màu",
+              "size": "màn hình chưa ở chế độ đồ hoạ với kích thước yêu cầu",
+              "cells": "một ô trên màn hình chưa đúng ký tự hoặc màu",
               "serial": "không thấy chuỗi mong đợi trên cổng serial COM1", "serial_re": "output serial không khớp mẫu mong đợi",
               "vga": "không thấy nội dung mong đợi trên màn hình VGA", "vga_re": "nội dung màn hình VGA không khớp mẫu mong đợi"}
 

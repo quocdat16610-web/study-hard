@@ -1,0 +1,168 @@
+{
+ "mode": "toy",
+ "template": "toy-gfx",
+ "track": "Đồ hoạ điểm ảnh",
+ "level": 2,
+ "title": "2. Hình chữ nhật và cắt xén (clipping)",
+ "statement": "Viết `fill_rect(x, y, w, h, màu)` an toàn với mọi toạ độ, kể cả khi hình nằm một phần ngoài màn hình. Vẽ: nền `0x008080`; thanh tác vụ `(0, 184, 320, 16)` màu `0xC0C0C0`; thân cửa sổ `(40, 30, 200, 120)` trắng; thanh tiêu đề `(40, 30, 200, 14)` màu `0x000080`; rồi hai hình tràn mép: `(300, -10, 50, 30)` vàng `0xFFFF00` và `(-20, 170, 40, 60)` hồng `0xFF00FF`.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "tests": [
+  {
+   "id": "mode",
+   "points": 10,
+   "expect": {
+    "size": [
+     320,
+     200
+    ],
+    "serial": "GFX OK"
+   },
+   "concept": "lúc mới boot card VGA ở text mode; kernel phải tự bật chế độ đồ hoạ rồi mới có framebuffer để vẽ"
+  },
+  {
+   "id": "scene",
+   "points": 30,
+   "expect": {
+    "rects": [
+     {
+      "x": 20,
+      "y": 184,
+      "w": 280,
+      "h": 16,
+      "rgb": "c0c0c0"
+     },
+     {
+      "x": 40,
+      "y": 44,
+      "w": 200,
+      "h": 106,
+      "rgb": "ffffff"
+     },
+     {
+      "x": 40,
+      "y": 30,
+      "w": 200,
+      "h": 14,
+      "rgb": "000080"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 10,
+      "y": 100,
+      "rgb": "008080"
+     },
+     {
+      "x": 280,
+      "y": 100,
+      "rgb": "008080"
+     },
+     {
+      "x": 39,
+      "y": 30,
+      "rgb": "008080"
+     },
+     {
+      "x": 240,
+      "y": 30,
+      "rgb": "008080"
+     },
+     {
+      "x": 100,
+      "y": 150,
+      "rgb": "008080"
+     }
+    ]
+   },
+   "concept": "hình vẽ sau đè lên hình vẽ trước; mép phải của hình rộng w bắt đầu ở x là x + w - 1"
+  },
+  {
+   "id": "clip-right-top",
+   "points": 30,
+   "expect": {
+    "rects": [
+     {
+      "x": 300,
+      "y": 0,
+      "w": 20,
+      "h": 20,
+      "rgb": "ffff00"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 299,
+      "y": 5,
+      "rgb": "008080"
+     },
+     {
+      "x": 5,
+      "y": 5,
+      "rgb": "008080"
+     },
+     {
+      "x": 5,
+      "y": 15,
+      "rgb": "008080"
+     },
+     {
+      "x": 310,
+      "y": 20,
+      "rgb": "008080"
+     }
+    ]
+   },
+   "concept": "không cắt xén thì điểm có x >= W rơi sang đầu hàng kế tiếp, vì framebuffer là mảng một chiều"
+  },
+  {
+   "id": "clip-left-bottom",
+   "points": 30,
+   "expect": {
+    "rects": [
+     {
+      "x": 0,
+      "y": 170,
+      "w": 20,
+      "h": 30,
+      "rgb": "ff00ff"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 20,
+      "y": 175,
+      "rgb": "008080"
+     },
+     {
+      "x": 310,
+      "y": 169,
+      "rgb": "008080"
+     },
+     {
+      "x": 310,
+      "y": 175,
+      "rgb": "008080"
+     }
+    ]
+   },
+   "concept": "toạ độ âm phải được nâng về 0; y vượt H nghĩa là ghi ra ngoài vùng nhớ của màn hình"
+  }
+ ]
+}

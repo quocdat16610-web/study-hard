@@ -1,0 +1,256 @@
+{
+ "mode": "toy",
+ "template": "toy-gfx",
+ "track": "Đồ hoạ điểm ảnh",
+ "level": 6,
+ "title": "6. Desktop: back buffer, click và thứ tự chồng",
+ "statement": "Dựng desktop có hai cửa sổ chồng nhau: `A` tại (20, 20) và `B` tại (100, 60), mỗi cái 140x90, vẽ như bài 4. Lúc đầu A nằm trên và active. Con trỏ 5x5 trắng bắt đầu tại (160, 100) và luôn nằm trên cùng. Click trái vào cửa sổ đang nằm dưới sẽ đưa nó lên trên và thành active; click vào vùng hai cửa sổ chồng nhau thì cửa sổ đang ở trên nhận click. Mỗi khung hình phải được dựng trong back buffer rồi mới chép ra màn hình.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "script": [
+  {
+   "wait": 2
+  },
+  {
+   "snap": "start"
+  },
+  {
+   "mouse": [
+    40,
+    20
+   ]
+  },
+  {
+   "wait": 0.3
+  },
+  {
+   "click": "left"
+  },
+  {
+   "wait": 0.5
+  },
+  {
+   "snap": "b"
+  },
+  {
+   "mouse": [
+    -160,
+    -80
+   ]
+  },
+  {
+   "wait": 0.3
+  },
+  {
+   "click": "left"
+  },
+  {
+   "wait": 0.5
+  },
+  {
+   "snap": "a"
+  },
+  {
+   "mouse": [
+    90,
+    40
+   ]
+  },
+  {
+   "wait": 0.3
+  },
+  {
+   "click": "left"
+  },
+  {
+   "wait": 0.8
+  }
+ ],
+ "tests": [
+  {
+   "id": "initial",
+   "points": 20,
+   "expect": {
+    "at": "start",
+    "size": [
+     320,
+     200
+    ],
+    "pixels": [
+     {
+      "x": 90,
+      "y": 26,
+      "rgb": "000080"
+     },
+     {
+      "x": 130,
+      "y": 66,
+      "rgb": "c0c0c0"
+     },
+     {
+      "x": 200,
+      "y": 66,
+      "rgb": "808080"
+     },
+     {
+      "x": 5,
+      "y": 5,
+      "rgb": "008080"
+     },
+     {
+      "x": 159,
+      "y": 50,
+      "rgb": "000000"
+     },
+     {
+      "x": 239,
+      "y": 100,
+      "rgb": "000000"
+     }
+    ],
+    "rects": [
+     {
+      "x": 160,
+      "y": 100,
+      "w": 5,
+      "h": 5,
+      "rgb": "ffffff"
+     }
+    ]
+   },
+   "concept": "thuật toán hoạ sĩ: cửa sổ dưới vẽ trước, cửa sổ trên vẽ sau, con trỏ sau cùng"
+  },
+  {
+   "id": "raise",
+   "points": 30,
+   "expect": {
+    "at": "b",
+    "pixels": [
+     {
+      "x": 130,
+      "y": 66,
+      "rgb": "000080"
+     },
+     {
+      "x": 200,
+      "y": 66,
+      "rgb": "000080"
+     },
+     {
+      "x": 90,
+      "y": 26,
+      "rgb": "808080"
+     },
+     {
+      "x": 100,
+      "y": 80,
+      "rgb": "000000"
+     }
+    ],
+    "rects": [
+     {
+      "x": 200,
+      "y": 120,
+      "w": 5,
+      "h": 5,
+      "rgb": "ffffff"
+     }
+    ]
+   },
+   "concept": "click vào cửa sổ nằm dưới đưa nó lên trên: z-order và trạng thái active đổi cùng lúc"
+  },
+  {
+   "id": "restore",
+   "points": 25,
+   "expect": {
+    "at": "a",
+    "pixels": [
+     {
+      "x": 90,
+      "y": 26,
+      "rgb": "000080"
+     },
+     {
+      "x": 130,
+      "y": 66,
+      "rgb": "c0c0c0"
+     },
+     {
+      "x": 200,
+      "y": 66,
+      "rgb": "808080"
+     },
+     {
+      "x": 202,
+      "y": 122,
+      "rgb": "c0c0c0"
+     }
+    ],
+    "rects": [
+     {
+      "x": 40,
+      "y": 40,
+      "w": 5,
+      "h": 5,
+      "rgb": "ffffff"
+     }
+    ]
+   },
+   "concept": "dựng lại cả khung hình trong back buffer: phần từng bị che hiện lại đúng, con trỏ không để lại vệt"
+  },
+  {
+   "id": "hit-test",
+   "points": 25,
+   "expect": {
+    "pixels": [
+     {
+      "x": 90,
+      "y": 26,
+      "rgb": "000080"
+     },
+     {
+      "x": 135,
+      "y": 66,
+      "rgb": "c0c0c0"
+     },
+     {
+      "x": 200,
+      "y": 66,
+      "rgb": "808080"
+     },
+     {
+      "x": 42,
+      "y": 42,
+      "rgb": "c0c0c0"
+     }
+    ],
+    "rects": [
+     {
+      "x": 130,
+      "y": 80,
+      "w": 5,
+      "h": 5,
+      "rgb": "ffffff"
+     }
+    ]
+   },
+   "concept": "hit testing đi từ trên xuống: click vào vùng chồng nhau thuộc về cửa sổ đang ở trên"
+  }
+ ]
+}

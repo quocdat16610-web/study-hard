@@ -134,3 +134,7 @@ dialog button { margin-top: 12px; }
 @media (min-width: 961px) {
   #result { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
 }
+
+/* Graphics-mode screenshots: 320x200 scaled up, pixels kept sharp. */
+.shot { display: block; width: 100%; max-width: 640px; height: auto; image-rendering: pixelated; margin: 0 auto; touch-action: none; user-select: none; }
+.screen-wrap:has(.shot) { padding: 0; cursor: crosshair; }

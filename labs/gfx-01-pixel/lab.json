@@ -1,0 +1,161 @@
+{
+ "mode": "toy",
+ "template": "toy-gfx",
+ "track": "Đồ hoạ điểm ảnh",
+ "level": 1,
+ "title": "1. Framebuffer và điểm ảnh",
+ "statement": "Bật chế độ đồ hoạ 320x200, tô nền màu `0x003366`, vẽ một đường ngang trắng ở y = 100, một đường dọc trắng ở x = 160 và một điểm đỏ (`0xFF0000`) tại (10, 10). Gửi `GFX OK` ra serial.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "tests": [
+  {
+   "id": "mode",
+   "points": 10,
+   "expect": {
+    "size": [
+     320,
+     200
+    ],
+    "serial": "GFX OK"
+   },
+   "concept": "lúc mới boot card VGA ở text mode; kernel phải tự bật chế độ đồ hoạ rồi mới có framebuffer để vẽ"
+  },
+  {
+   "id": "background",
+   "points": 25,
+   "expect": {
+    "pixels": [
+     {
+      "x": 0,
+      "y": 0,
+      "rgb": "003366"
+     },
+     {
+      "x": 319,
+      "y": 199,
+      "rgb": "003366"
+     },
+     {
+      "x": 50,
+      "y": 50,
+      "rgb": "003366"
+     },
+     {
+      "x": 300,
+      "y": 150,
+      "rgb": "003366"
+     }
+    ]
+   },
+   "concept": "framebuffer là mảng một chiều: W * H phần tử, mỗi phần tử một điểm ảnh"
+  },
+  {
+   "id": "horizontal",
+   "points": 25,
+   "expect": {
+    "rects": [
+     {
+      "x": 0,
+      "y": 100,
+      "w": 160,
+      "h": 1,
+      "rgb": "ffffff"
+     },
+     {
+      "x": 161,
+      "y": 100,
+      "w": 159,
+      "h": 1,
+      "rgb": "ffffff"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 5,
+      "y": 99,
+      "rgb": "003366"
+     },
+     {
+      "x": 5,
+      "y": 101,
+      "rgb": "003366"
+     }
+    ]
+   },
+   "concept": "điểm (x, y) ở chỉ số y * W + x; một đường ngang là dãy chỉ số liên tiếp"
+  },
+  {
+   "id": "vertical",
+   "points": 25,
+   "expect": {
+    "rects": [
+     {
+      "x": 160,
+      "y": 0,
+      "w": 1,
+      "h": 200,
+      "rgb": "ffffff"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 159,
+      "y": 5,
+      "rgb": "003366"
+     },
+     {
+      "x": 161,
+      "y": 5,
+      "rgb": "003366"
+     }
+    ]
+   },
+   "concept": "đi xuống một hàng là cộng thêm W vào chỉ số"
+  },
+  {
+   "id": "pixel",
+   "points": 15,
+   "expect": {
+    "pixels": [
+     {
+      "x": 10,
+      "y": 10,
+      "rgb": "ff0000"
+     },
+     {
+      "x": 11,
+      "y": 10,
+      "rgb": "003366"
+     },
+     {
+      "x": 10,
+      "y": 11,
+      "rgb": "003366"
+     },
+     {
+      "x": 9,
+      "y": 10,
+      "rgb": "003366"
+     }
+    ]
+   },
+   "concept": "màu 32 bit dạng 0x00RRGGBB: mỗi kênh đỏ, lục, lam chiếm 8 bit"
+  }
+ ]
+}

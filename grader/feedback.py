@@ -119,6 +119,12 @@ def _test(lab: dict, v: dict, spec: dict) -> dict:
             msg += f" Mong đợi thấy `{spec['expect']['vga']}`, màn hình đang là `{d['screen'].strip()[:80]}`."
         if not hidden and "vga_re" in d.get("missed", []) and "row" in spec["expect"]:
             msg += f" Hàng {spec['expect']['row']} đang là `{d['screen'].rstrip()[:80]}`."
+        if "pixels" in d.get("missed", []) and d.get("size") != [320, 200]:
+            msg += (f" Màn hình đang ở {d['size'][0]}x{d['size'][1]}, chưa phải 320x200: kernel chưa bật chế độ đồ hoạ."
+                    if d.get("size") else " Không chụp được màn hình.")
+        elif not hidden and (px := d.get("pixel")):
+            got = f"#{px['got']}" if px["got"] else "ngoài màn hình"
+            msg += f" Tại điểm ảnh (x={px['x']}, y={px['y']}): mong đợi màu #{px['expected']}, đang là {got}."
         if not hidden and (c := d.get("cell")):
             want = (f"`{c['expected']}`" if c["expected"] is not None else "") + (f" màu 0x{c['expected_attr']}" if c["expected_attr"] else "")
             msg += f" Tại hàng {c['row']}, cột {c['col']}: mong đợi {want.strip()}, đang là `{c['got']}` màu 0x{c['got_attr']}."

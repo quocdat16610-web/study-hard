@@ -16,9 +16,10 @@ from typing import Protocol
 
 from . import compiler, feedback, labs, pipeline, precheck, preview, queue as q
 from .config import CFG
-from .sandbox import qemu, serial
+from .sandbox import image, qemu, serial
 
 log = logging.getLogger("grader.live")
+EVENT = re.compile(r"m:(-?\d{1,3}),(-?\d{1,3})|b:(left|right|middle):([01])")
 KEY = re.compile(r"(?:(?:shift|ctrl|alt)\+){0,3}[a-z0-9_]{1,16}")
 TICK = 0.1
 IDLE_GRACE = 8  # seconds without a watching client before the VM is stopped
@@ -39,7 +40,7 @@ class RedisChannel:
         self.r.set(q.live(self.sid, "frame"), json.dumps(frame, ensure_ascii=False), ex=600)
 
     def keys(self) -> list[str]:
-        return self.r.lpop(q.live(self.sid, "keys"), 8) or []
+        return self.r.lpop(q.live(self.sid, "keys"), 32) or []
 
     def watched(self) -> bool:
         return bool(self.r.exists(q.live(self.sid, "seen")))
@@ -95,17 +96,26 @@ def _stream(sid: str, lab: dict, work, ch: Channel, emit, halt) -> tuple[str, di
                     return "stopped", frame
                 if time.monotonic() - t0 > IDLE_GRACE and not ch.watched():
                     return "idle", frame
-                for key in ch.keys():
-                    if KEY.fullmatch(key):
-                        vm.press(key.split("+"))
-                raw, out = vm.screen(), vm.serial()
+                for event in ch.keys():  # keys ("a", "shift+a") and pointer events ("m:dx,dy", "b:left:1"), in order
+                    if m := EVENT.fullmatch(event):
+                        if m.group(3):
+                            vm.button(m.group(3), m.group(4) == "1")
+                        else:
+                            vm.move(int(m.group(1)), int(m.group(2)))
+                    elif KEY.fullmatch(event):
+                        vm.press(event.split("+"))
+                raw, out = (vm.screenshot() if vm.gfx else vm.screen()), vm.serial()
                 if (raw, out) != shown:
                     shown = (raw, out)
-                    frame = {"cols": 80, "rows": 25, "text": serial.vga_text(raw), "attr": serial.vga_attrs(raw),
-                             "palette": preview.COLORS, "serial": re.sub(r"[^\x09\x0a\x20-\x7e]", "?", out)}
+                    frame = {"serial": re.sub(r"[^\x09\x0a\x20-\x7e]", "?", out)}
+                    if vm.gfx:
+                        frame["image"] = image.shot(raw)
+                    else:
+                        frame |= {"cols": 80, "rows": 25, "text": serial.vga_text(raw), "attr": serial.vga_attrs(raw),
+                                  "palette": preview.COLORS}
                     emit("running", left=int(left), **frame)
                 time.sleep(TICK)
-        except (OSError, RuntimeError):  # QMP gone: the guest reset (triple fault) or QEMU was killed
+        except (OSError, RuntimeError, ValueError):  # QMP gone: the guest reset (triple fault) or QEMU was killed
             return "reset", frame
         finally:
             vm.stop()

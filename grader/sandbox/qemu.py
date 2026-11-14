@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 from ..config import CFG
-from . import serial
+from . import image, serial
 from .container import Box, Limits, own
 
 ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
@@ -124,8 +124,29 @@ def _runtime(sid: str) -> Path:
     return rt
 
 
-def _drive(box: Box, rt: Path, script: list[dict]) -> bool:
-    """Toy kernels: feed keys, dump the VGA text buffer, stop the VM. False if it died early."""
+def _capture(q: QMP, gfx: bool, stem: str) -> None:
+    """Text labs: the 80x25 VGA text buffer. Graphics labs: a real screenshot of whatever mode is set."""
+    if gfx:
+        q.cmd("screendump", filename=f"{VM}/{stem}.ppm")
+    else:
+        q.cmd("pmemsave", val=0xB8000, size=4000, filename=f"{VM}/{stem}.bin")
+
+
+def _mouse(q: QMP, dx: int, dy: int) -> None:
+    for axis, v in (("x", dx), ("y", dy)):
+        while v:  # PS/2 packets carry at most +-127 per axis: feed large moves in pieces
+            part = max(-100, min(100, v))
+            q.cmd("input-send-event", events=[{"type": "rel", "data": {"axis": axis, "value": part}}])
+            v -= part
+            time.sleep(0.02)
+
+
+def _button(q: QMP, button: str, down: bool) -> None:
+    q.cmd("input-send-event", events=[{"type": "btn", "data": {"down": down, "button": button}}])
+
+
+def _drive(box: Box, rt: Path, script: list[dict], gfx: bool) -> bool:
+    """Toy kernels: feed keys and mouse input, capture the screen, stop the VM. False if it died early."""
     try:
         q = QMP(rt / "qmp.sock", lambda: box.p.poll() is None)
         for step in script:
@@ -133,14 +154,37 @@ def _drive(box: Box, rt: Path, script: list[dict]) -> bool:
             for key in step.get("keys", []):
                 q.cmd("send-key", keys=[{"type": "qcode", "data": key}])
                 time.sleep(0.05)
+            if "mouse" in step:
+                _mouse(q, int(step["mouse"][0]), int(step["mouse"][1]))
+            if step.get("click") in ("left", "right", "middle"):
+                _button(q, step["click"], True)
+                time.sleep(0.08)
+                _button(q, step["click"], False)
             if NAME.fullmatch(step.get("snap", "")):  # mid-script screenshot for multi-step UI tests
                 time.sleep(0.3)
-                q.cmd("pmemsave", val=0xB8000, size=4000, filename=f"{VM}/snap-{step['snap']}.bin")
-        q.cmd("pmemsave", val=0xB8000, size=4000, filename=f"{VM}/vga.bin")
+                _capture(q, gfx, f"snap-{step['snap']}")
+        _capture(q, gfx, "final")
         q.cmd("quit")
         return True
     except (OSError, RuntimeError):
         return False
+
+
+def _screens(rt: Path, gfx: bool) -> dict:
+    """Collect what _drive captured, in the shape the harness and preview expect."""
+    def load(p: Path) -> dict | None:
+        try:
+            if gfx:
+                return {"gfx": image.shot(p.read_bytes())}
+            raw = p.read_bytes()
+            return {"text": serial.vga_text(raw), "attr": serial.vga_attrs(raw)}
+        except (OSError, ValueError):
+            return None
+
+    ext = "ppm" if gfx else "bin"
+    final = load(rt / f"final.{ext}") or {}
+    snaps = {p.stem[5:]: s for p in sorted(rt.glob(f"snap-*.{ext}")) if (s := load(p))}
+    return {"vga": final.get("text"), "vga_attr": final.get("attr"), "gfx": final.get("gfx"), "snaps": snaps}
 
 
 def run(sid: str, tpl: str, artifact: Path, script: list[dict] | None = None) -> dict:
@@ -159,7 +203,7 @@ def run(sid: str, tpl: str, artifact: Path, script: list[dict] | None = None) ->
         nonce = secrets.token_hex(16)
         snap = None if toy or not _snap(vm).exists() else _snap(vm)
         with _box(vm, rt, nonce, qmp=toy, incoming=snap) as box:
-            alive = _drive(box, rt, script or vm.get("script", [])) if toy else False
+            alive = _drive(box, rt, script or vm.get("script", []), vm.get("display") == "gfx") if toy else False
             r = box.wait()
         raw = (rt / "serial.log").read_bytes()[-LOG_CAP:] if (rt / "serial.log").exists() else b""
         log = raw.decode("utf-8", "replace")
@@ -171,12 +215,8 @@ def run(sid: str, tpl: str, artifact: Path, script: list[dict] | None = None) ->
         elif bad_image:
             out["status"] = "bad_image"
         elif toy:
-            vga = rt / "vga.bin"
             out |= {"status": "ok" if alive or r.exit_code & 1 else "hang" if r.timed_out else "reset",
-                    "vga": serial.vga_text(vga.read_bytes()) if vga.exists() else None,
-                    "vga_attr": serial.vga_attrs(vga.read_bytes()) if vga.exists() else None,
-                    "snaps": {p.stem[5:]: {"text": serial.vga_text(p.read_bytes()), "attr": serial.vga_attrs(p.read_bytes())}
-                              for p in sorted(rt.glob("snap-*.bin"))}}
+                    **_screens(rt, vm.get("display") == "gfx")}
         else:
             tests, done = serial.parse(log, nonce)
             fail = serial.failure(log)
@@ -195,8 +235,8 @@ class Live:
     """A running toy kernel the host can look at and type into. No network, no VNC: the screen is
     the VGA text buffer read through QMP, keys go in through QMP."""
 
-    def __init__(self, box: Box, rt: Path):
-        self.box, self.rt = box, rt
+    def __init__(self, box: Box, rt: Path, gfx: bool = False):
+        self.box, self.rt, self.gfx = box, rt, gfx
         self.q = QMP(rt / "qmp.sock", self.alive)
 
     def alive(self) -> bool:
@@ -205,6 +245,16 @@ class Live:
     def screen(self) -> bytes:
         self.q.cmd("pmemsave", val=0xB8000, size=4000, filename=f"{VM}/vga.bin")
         return (self.rt / "vga.bin").read_bytes()
+
+    def screenshot(self) -> bytes:
+        self.q.cmd("screendump", filename=f"{VM}/live.ppm")
+        return (self.rt / "live.ppm").read_bytes()
+
+    def move(self, dx: int, dy: int) -> None:
+        _mouse(self.q, max(-400, min(400, dx)), max(-400, min(400, dy)))
+
+    def button(self, button: str, down: bool) -> None:
+        _button(self.q, button, down)
 
     def serial(self) -> str:
         f = self.rt / "serial.log"
@@ -234,7 +284,7 @@ def live(sid: str, tpl: str, artifact: Path, seconds: float):
             shutil.copyfileobj(src, dst)
         own(rt)
         with _box(vm, rt, qmp=True, timeout=seconds, cpus=0.5) as box:
-            yield Live(box, rt)
+            yield Live(box, rt, vm.get("display") == "gfx")
     finally:
         shutil.rmtree(rt, ignore_errors=True)
 

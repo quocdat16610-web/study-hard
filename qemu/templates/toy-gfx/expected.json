@@ -1,0 +1,9 @@
+{
+  "vm": {"mode": "toy", "display": "gfx", "artifact": "kernel.elf", "mem_mb": 64, "smp": 1, "timeout": 20,
+         "script": [{"wait": 2}]},
+  "tests": [
+    {"id": "mode", "points": 100, "expect": {"size": [320, 200]},
+     "concept": "kernel phải tự bật chế độ đồ hoạ; lúc mới boot card VGA vẫn ở text mode"}
+  ],
+  "penalties": {"reset": 30, "bad_image": 100}
+}

@@ -201,8 +201,22 @@ function screen(p) {
   return h("div", { className: "screen-wrap" }, pre);
 }
 
+function shot(image) {  // a real screenshot of the kernel's graphics mode, scaled up with hard pixel edges
+  if (!image) return h("p", { className: "empty", textContent: "Không chụp được màn hình (kernel dừng trước khi vẽ)." });
+  const img = h("img", { className: "shot", alt: `Ảnh màn hình kernel, ${image.w}x${image.h} điểm ảnh`, draggable: false });
+  img.src = `data:image/png;base64,${image.png}`;
+  img.width = image.w;
+  img.height = image.h;
+  return h("div", { className: "screen-wrap" }, img);
+}
+
 function preview(p) {
   if (!p) return [];
+  if (p.kind === "image") {
+    const mode = p.image ? ` (${p.image.w}x${p.image.h})` : "";
+    return [h("h3", { textContent: `Màn hình kernel của bạn${mode}` }), shot(p.image),
+      h("h3", { textContent: "Cổng serial (COM1)" }), h("pre", { className: "out", textContent: p.serial || "(trống)" })];
+  }
   if (p.kind === "screen") {
     return [h("h3", { textContent: "Màn hình kernel của bạn" }), screen(p),
       h("h3", { textContent: "Cổng serial (COM1)" }), h("pre", { className: "out", textContent: p.serial || "(trống)" })];
@@ -290,15 +304,60 @@ function qcode(key) {  // one character or KeyboardEvent.key -> QEMU key name (w
   return key === "\n" ? "ret" : null;
 }
 
+let flushTimer = null;
+const pointer = { dx: 0, dy: 0 };  // mouse movement accumulated since the last batch (guest pixels)
+
+function flushPointer() {  // moves are merged, but stay ordered relative to clicks and keys
+  const dx = Math.trunc(pointer.dx);
+  const dy = Math.trunc(pointer.dy);
+  if (!dx && !dy) return;
+  pointer.dx -= dx;
+  pointer.dy -= dy;
+  keyBuf.push(`m:${Math.max(-400, Math.min(400, dx))},${Math.max(-400, Math.min(400, dy))}`);
+}
+
+function scheduleFlush() {
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {  // batch a burst of input into one request
+    flushTimer = null;
+    flushPointer();
+    const batch = keyBuf.splice(0, 32);
+    if (liveId && batch.length) api(`/live/${liveId}/keys`, { keys: batch }).catch(() => {});
+    if (keyBuf.length) scheduleFlush();
+  }, 80);
+}
+
 function typeKeys(keys) {
   if (!liveId || !keys.length) return;
-  if (!keyBuf.length) {
-    setTimeout(() => {  // batch a burst of typing into one request
-      const batch = keyBuf.splice(0, 32);
-      if (liveId && batch.length) api(`/live/${liveId}/keys`, { keys: batch }).catch(() => {});
-    }, 80);
-  }
+  flushPointer();
   keyBuf.push(...keys);
+  scheduleFlush();
+}
+
+function watchPointer(wrap) {  // relative mouse: the kernel owns the cursor position, we only report motion
+  let last = null;
+  wrap.addEventListener("pointermove", (e) => {
+    const img = wrap.querySelector("img");
+    if (!liveId || !img) return;
+    if (last) {
+      const scale = img.naturalWidth / img.clientWidth;
+      pointer.dx += (e.clientX - last.x) * scale;
+      pointer.dy += (e.clientY - last.y) * scale;
+      scheduleFlush();
+    }
+    last = { x: e.clientX, y: e.clientY };
+  });
+  wrap.addEventListener("pointerleave", () => { last = null; });
+  const button = (e, down) => {
+    const name = ["left", "middle", "right"][e.button];
+    if (!liveId || !name) return;
+    e.preventDefault();
+    wrap.focus({ preventScroll: true });
+    typeKeys([`b:${name}:${down ? 1 : 0}`]);
+  };
+  wrap.addEventListener("pointerdown", (e) => button(e, true));
+  wrap.addEventListener("pointerup", (e) => button(e, false));
+  wrap.addEventListener("contextmenu", (e) => e.preventDefault());
 }
 
 function stopLive() {
@@ -315,7 +374,7 @@ async function startLive() {
   const view = h("div", {});
   const serialOut = h("pre", { className: "out", textContent: "(trống)" });
   const extra = h("div", {});
-  $("result").replaceChildren(bar, view, h("p", { className: "hint", textContent: "Bấm vào màn hình rồi gõ phím để gửi vào kernel (kể cả Tab và mũi tên); Shift+Tab để rời khỏi màn hình. Trên điện thoại: nhập vào ô “Phím gõ” rồi nhấn Enter." }),
+  $("result").replaceChildren(bar, view, h("p", { className: "hint", textContent: "Bấm vào màn hình rồi gõ phím để gửi vào kernel (kể cả Tab và mũi tên); Shift+Tab để rời khỏi màn hình. Với bài đồ hoạ: rê chuột và click ngay trên màn hình; kernel chỉ nhận độ dịch chuyển nên con trỏ của nó có thể lệch khỏi con trỏ của bạn. Trên điện thoại: nhập vào ô “Phím gõ” rồi nhấn Enter." }),
     h("h3", { textContent: "Cổng serial (COM1)" }), serialOut, extra);
   let id;
   try {
@@ -338,9 +397,11 @@ async function startLive() {
       if (liveId !== id) break;  // a newer session took over this panel
       const stale = f.seq === after;  // the long-poll timed out and returned the frame we already have
       after = f.seq;
-      if (f.text && !stale) {
-        const fresh = screen(f);
-        if (wrap) {
+      if ((f.text || f.image) && !stale) {
+        const fresh = f.image ? shot(f.image) : screen(f);
+        if (wrap && f.image && wrap.querySelector("img")) {
+          wrap.querySelector("img").src = fresh.querySelector("img").src;  // same element: no flicker, handlers stay
+        } else if (wrap) {
           wrap.replaceChildren(...fresh.childNodes);  // keep the focused element in place
         } else {
           wrap = fresh;
@@ -353,6 +414,7 @@ async function startLive() {
             const k = qcode(e.key);
             if (k) { e.preventDefault(); typeKeys([k]); }
           });
+          watchPointer(wrap);
           view.replaceChildren(h("h3", { textContent: "Màn hình kernel (trực tiếp)" }), wrap);
           wrap.focus({ preventScroll: true });
         }

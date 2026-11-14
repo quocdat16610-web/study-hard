@@ -1,0 +1,156 @@
+{
+ "mode": "toy",
+ "template": "toy-gfx",
+ "track": "Đồ hoạ điểm ảnh",
+ "level": 3,
+ "title": "3. Font bitmap: tự vẽ chữ",
+ "statement": "Viết `draw_char` và `draw_text` dùng font 5x7 trong `font.h`. Tô nền `0x000080`, in `HELLO OS` màu trắng tại (8, 8), rồi in `320X200\\nPIXELS` màu vàng `0xFFFF00` tại (8, 24). Ký tự xuống dòng đưa về cột x ban đầu và xuống `FONT_H + 2` điểm.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "tests": [
+  {
+   "id": "mode",
+   "points": 10,
+   "expect": {
+    "size": [
+     320,
+     200
+    ],
+    "serial": "GFX OK"
+   },
+   "concept": "lúc mới boot card VGA ở text mode; kernel phải tự bật chế độ đồ hoạ rồi mới có framebuffer để vẽ"
+  },
+  {
+   "id": "glyph",
+   "points": 30,
+   "expect": {
+    "bitmaps": [
+     {
+      "x": 8,
+      "y": 8,
+      "rows": [
+       "X...X.",
+       "X...X.",
+       "X...X.",
+       "XXXXX.",
+       "X...X.",
+       "X...X.",
+       "X...X."
+      ],
+      "on": "ffffff",
+      "off": "000080"
+     }
+    ]
+   },
+   "concept": "mỗi hàng của ký tự là một byte; bit 4 là cột trái nhất, nên kiểm tra bằng 0x10 >> col"
+  },
+  {
+   "id": "text",
+   "points": 30,
+   "expect": {
+    "bitmaps": [
+     {
+      "x": 8,
+      "y": 8,
+      "rows": [
+       "X...X.XXXXX.X.....X......XXX.........XXX...XXXX.",
+       "X...X.X.....X.....X.....X...X.......X...X.X.....",
+       "X...X.X.....X.....X.....X...X.......X...X.X.....",
+       "XXXXX.XXXX..X.....X.....X...X.......X...X..XXX..",
+       "X...X.X.....X.....X.....X...X.......X...X.....X.",
+       "X...X.X.....X.....X.....X...X.......X...X.....X.",
+       "X...X.XXXXX.XXXXX.XXXXX..XXX.........XXX..XXXX.."
+      ],
+      "on": "ffffff",
+      "off": "000080"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 8,
+      "y": 7,
+      "rgb": "000080"
+     },
+     {
+      "x": 8,
+      "y": 15,
+      "rgb": "000080"
+     },
+     {
+      "x": 56,
+      "y": 10,
+      "rgb": "000080"
+     }
+    ]
+   },
+   "concept": "bit tắt không được tô: chữ có nền trong suốt; mỗi ký tự cách nhau FONT_ADVANCE điểm"
+  },
+  {
+   "id": "newline",
+   "points": 30,
+   "expect": {
+    "bitmaps": [
+     {
+      "x": 8,
+      "y": 24,
+      "rows": [
+       "XXXX...XXX...XXX..X...X..XXX...XXX...XXX..",
+       "....X.X...X.X...X.X...X.X...X.X...X.X...X.",
+       "....X.....X.X..XX..X.X......X.X..XX.X..XX.",
+       ".XXX.....X..X.X.X...X......X..X.X.X.X.X.X.",
+       "....X...X...XX..X..X.X....X...XX..X.XX..X.",
+       "....X..X....X...X.X...X..X....X...X.X...X.",
+       "XXXX..XXXXX..XXX..X...X.XXXXX..XXX...XXX.."
+      ],
+      "on": "ffff00",
+      "off": "000080"
+     },
+     {
+      "x": 8,
+      "y": 33,
+      "rows": [
+       "XXXX...XXX..X...X.XXXXX.X......XXXX.",
+       "X...X...X...X...X.X.....X.....X.....",
+       "X...X...X....X.X..X.....X.....X.....",
+       "XXXX....X.....X...XXXX..X......XXX..",
+       "X.......X....X.X..X.....X.........X.",
+       "X.......X...X...X.X.....X.........X.",
+       "X......XXX..X...X.XXXXX.XXXXX.XXXX.."
+      ],
+      "on": "ffff00",
+      "off": "000080"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 50,
+      "y": 24,
+      "rgb": "000080"
+     },
+     {
+      "x": 50,
+      "y": 33,
+      "rgb": "000080"
+     }
+    ]
+   },
+   "concept": "xuống dòng là việc của hàm vẽ chuỗi: đặt lại x và cộng chiều cao dòng vào y"
+  }
+ ]
+}

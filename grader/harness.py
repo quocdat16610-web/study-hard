@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 import signal
 
+from .sandbox import image
+
 SNIP = 200
 
 
@@ -100,23 +102,51 @@ def _cell(shot: dict, c: dict) -> dict | None:
     return None
 
 
+def _pixel(img: tuple[int, int, bytes] | None, exp: dict) -> dict | None:
+    """First pixel that differs from exp["pixels"] / exp["rects"] / exp["bitmaps"], or None."""
+    if img is None:
+        return {"x": 0, "y": 0, "expected": None, "got": None}
+    w, h, rgb = img
+    want = [(p["x"], p["y"], p["rgb"].lower()) for p in exp.get("pixels", [])]
+    for r in exp.get("rects", []):
+        want += [(x, y, r["rgb"].lower()) for y in range(r["y"], r["y"] + r["h"]) for x in range(r["x"], r["x"] + r["w"])]
+    for b in exp.get("bitmaps", []):  # {x, y, rows: ["X..X", ...], on, off}: every pixel of the box, exactly
+        want += [(b["x"] + i, b["y"] + j, (b["on"] if ch == "X" else b["off"]).lower())
+                 for j, row in enumerate(b["rows"]) for i, ch in enumerate(row)]
+    for x, y, colour in want:
+        got = rgb[(y * w + x) * 3:(y * w + x) * 3 + 3].hex() if 0 <= x < w and 0 <= y < h else None
+        if got != colour:
+            return {"x": x, "y": y, "expected": colour, "got": got}
+    return None
+
+
 def _toy(lab: dict, data: dict) -> list[dict]:
     serial, out = data.get("serial") or "", []
-    final = {"text": data.get("vga"), "attr": data.get("vga_attr")}
+    final = {"text": data.get("vga"), "attr": data.get("vga_attr"), "gfx": data.get("gfx")}
+    decoded: dict[int, tuple] = {}  # each screenshot is inflated once, however many tests look at it
     for t in lab["tests"]:
         exp = t.get("expect", {})
         shot = data.get("snaps", {}).get(exp["at"]) if "at" in exp else final  # "at": a named mid-script snapshot
         rows = (shot or {}).get("text") or []
         screen = rows[exp["row"]] if "row" in exp and exp["row"] < len(rows) else "\n".join(rows)
         bad = next((d for c in exp.get("cells", []) if (d := _cell(shot, c))), None) if rows else None
+        gfx = (shot or {}).get("gfx")
+        if gfx and id(gfx) not in decoded:
+            decoded[id(gfx)] = image.pixels(gfx)
+        img = decoded.get(id(gfx)) if gfx else None
+        wants_pixels = bool(exp.get("pixels") or exp.get("rects") or exp.get("bitmaps"))
+        bad_px = _pixel(img, exp) if wants_pixels else None
         checks = {"serial": exp.get("serial") is None or exp["serial"] in serial,
                   "serial_re": exp.get("serial_re") is None or re.search(exp["serial_re"], serial) is not None,
                   "vga": exp.get("vga") is None or exp["vga"] in screen,
                   "vga_re": exp.get("vga_re") is None or re.search(exp["vga_re"], screen) is not None,
-                  "cells": not exp.get("cells") or (bool(rows) and bad is None)}
+                  "cells": not exp.get("cells") or (bool(rows) and bad is None),
+                  "size": "size" not in exp or (img is not None and list(img[:2]) == exp["size"]),
+                  "pixels": not wants_pixels or bad_px is None}
         missed = [k for k, ok in checks.items() if not ok]
         out.append(_verdict(t, not missed, "ok" if not missed else "failed",
-                            None if not missed else {"missed": missed, "status": data.get("status"), "cell": bad,
+                            None if not missed else {"missed": missed, "status": data.get("status"), "cell": bad, "pixel": bad_px,
+                                                     "size": list(img[:2]) if img else None,
                                                      "screen": screen[:SNIP], "serial": serial[-SNIP:]}))
     return out
 

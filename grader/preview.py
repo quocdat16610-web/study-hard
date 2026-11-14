@@ -22,6 +22,9 @@ def build(lab: dict, report: dict) -> dict | None:
     if not dyn:
         return None
     d, mode = dyn["data"], lab["mode"]
+    if mode == "toy" and lab.get("vm", {}).get("display") == "gfx":
+        return {"kind": "image", "status": d["status"], "image": d.get("gfx"),
+                "serial": re.sub(r"[^\x09\x0a\x20-\x7e]", "?", d["serial"])[-TAIL:]}
     if mode == "toy":
         return {"kind": "screen", "status": d["status"], "cols": 80, "rows": 25, "text": d.get("vga"),
                 "attr": d.get("vga_attr"), "palette": COLORS, "serial": re.sub(r"[^\x09\x0a\x20-\x7e]", "?", d["serial"])[-TAIL:]}
@@ -38,6 +41,9 @@ def render(p: dict | None) -> str:
     """Plain-text rendering (the app draws `text` + `attr` as a coloured 80x25 grid instead)."""
     if p is None:
         return ""
+    if p["kind"] == "image":
+        size = f"{p['image']['w']}x{p['image']['h']}" if p["image"] else "không chụp được"
+        return f"[ảnh màn hình {size}]\nserial: {p['serial'].strip()}"
     if p["kind"] == "screen":
         rows = p["text"] or ["(không lấy được màn hình)"]
         return "\n".join(["+" + "-" * 80 + "+", *(f"|{r:<80}|" for r in rows), "+" + "-" * 80 + "+",

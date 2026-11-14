@@ -110,7 +110,8 @@ class Box:
         wall = time.monotonic() - self.t0
         for t in self.th:
             t.join(5)
-        if code == 125 and b"docker: " in self.err:  # the sandbox itself failed, not the code inside it
+        down = b"Cannot connect to the Docker daemon" in self.err or b"error during connect" in self.err
+        if (code == 125 and b"docker: " in self.err) or down:  # the sandbox itself failed, not the code inside it
             raise SandboxError(self.err.decode("utf-8", "replace")[-300:])
         timed_out = late or (code == 137 and wall >= self.lim.timeout)
         return Result(code, bytes(self.out), bytes(self.err), timed_out, code == 137 and not timed_out, wall)

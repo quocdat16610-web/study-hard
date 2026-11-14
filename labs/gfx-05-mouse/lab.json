@@ -1,0 +1,212 @@
+{
+ "mode": "toy",
+ "template": "toy-gfx",
+ "track": "Đồ hoạ điểm ảnh",
+ "level": 5,
+ "title": "5. Chuột PS/2 và con trỏ",
+ "statement": "Vẽ nền `0x008080` và một hình đỏ `(100, 60, 60, 40)`. Hiển thị con trỏ là hình vuông trắng 5x5 có góc trên trái tại (160, 100). Đọc gói tin chuột PS/2 để di chuyển con trỏ; khi con trỏ rời đi, hình nền bên dưới phải được khôi phục. Con trỏ luôn nằm trọn trong màn hình.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "script": [
+  {
+   "wait": 2
+  },
+  {
+   "snap": "start"
+  },
+  {
+   "mouse": [
+    -30,
+    -20
+   ]
+  },
+  {
+   "wait": 0.5
+  },
+  {
+   "snap": "moved"
+  },
+  {
+   "mouse": [
+    50,
+    60
+   ]
+  },
+  {
+   "wait": 0.5
+  },
+  {
+   "snap": "restored"
+  },
+  {
+   "mouse": [
+    300,
+    300
+   ]
+  },
+  {
+   "wait": 0.8
+  }
+ ],
+ "tests": [
+  {
+   "id": "start",
+   "points": 15,
+   "expect": {
+    "at": "start",
+    "size": [
+     320,
+     200
+    ],
+    "rects": [
+     {
+      "x": 160,
+      "y": 100,
+      "w": 5,
+      "h": 5,
+      "rgb": "ffffff"
+     },
+     {
+      "x": 100,
+      "y": 60,
+      "w": 60,
+      "h": 40,
+      "rgb": "ff0000"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 165,
+      "y": 100,
+      "rgb": "008080"
+     },
+     {
+      "x": 160,
+      "y": 105,
+      "rgb": "008080"
+     }
+    ]
+   },
+   "concept": "con trỏ chỉ là một hình nhỏ vẽ sau cùng, tại vị trí kernel tự ghi nhớ"
+  },
+  {
+   "id": "move",
+   "points": 30,
+   "expect": {
+    "at": "moved",
+    "rects": [
+     {
+      "x": 130,
+      "y": 80,
+      "w": 5,
+      "h": 5,
+      "rgb": "ffffff"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 162,
+      "y": 102,
+      "rgb": "008080"
+     },
+     {
+      "x": 129,
+      "y": 80,
+      "rgb": "ff0000"
+     },
+     {
+      "x": 135,
+      "y": 80,
+      "rgb": "ff0000"
+     }
+    ]
+   },
+   "concept": "gói tin chứa độ dịch chuyển có dấu 9 bit; dy dương là đi lên nên phải trừ vào toạ độ y của màn hình"
+  },
+  {
+   "id": "restore",
+   "points": 30,
+   "expect": {
+    "at": "restored",
+    "rects": [
+     {
+      "x": 180,
+      "y": 140,
+      "w": 5,
+      "h": 5,
+      "rgb": "ffffff"
+     },
+     {
+      "x": 100,
+      "y": 60,
+      "w": 60,
+      "h": 40,
+      "rgb": "ff0000"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 162,
+      "y": 102,
+      "rgb": "008080"
+     }
+    ]
+   },
+   "concept": "trước khi vẽ con trỏ phải lưu vùng nền nó che, để trả lại khi con trỏ rời đi"
+  },
+  {
+   "id": "clamp",
+   "points": 25,
+   "expect": {
+    "rects": [
+     {
+      "x": 315,
+      "y": 195,
+      "w": 5,
+      "h": 5,
+      "rgb": "ffffff"
+     }
+    ],
+    "pixels": [
+     {
+      "x": 314,
+      "y": 195,
+      "rgb": "008080"
+     },
+     {
+      "x": 315,
+      "y": 194,
+      "rgb": "008080"
+     },
+     {
+      "x": 0,
+      "y": 0,
+      "rgb": "008080"
+     },
+     {
+      "x": 182,
+      "y": 142,
+      "rgb": "008080"
+     }
+    ]
+   },
+   "concept": "toạ độ con trỏ phải được chặn trong màn hình, nếu không nó vẽ ra ngoài framebuffer"
+  }
+ ]
+}
