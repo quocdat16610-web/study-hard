@@ -6,6 +6,7 @@ import sys
 
 KINDS = (
     ("kasan", r"BUG: KASAN: [^\r\n]*"),
+    ("slab", r"BUG kmalloc[^\r\n]*|BUG [\w-]+ \([^)\r\n]*\): [^\r\n]*"),
     ("lockup", r"watchdog: BUG: soft lockup[^\r\n]*|rcu: INFO: [^\r\n]*stall[^\r\n]*"
                r"|INFO: task [^\r\n]* blocked for more than[^\r\n]*"),
     ("atomic", r"BUG: (?:scheduling while atomic|sleeping function called)[^\r\n]*"),

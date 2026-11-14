@@ -4,9 +4,9 @@
   "tests": [
     {"id": "boot",     "points": 30, "expect": {"serial": "BOOT OK"},
      "concept": "bootloader (Multiboot) nạp ELF tại 1MiB và nhảy tới _start ở protected mode 32-bit, chưa có stack"},
-    {"id": "vga",      "points": 30, "expect": {"vga": "Hello, kernel"},
+    {"id": "vga",      "points": 30, "expect": {"vga": "Hello, kernel", "row": 0},
      "concept": "text mode VGA là vùng nhớ ánh xạ tại 0xB8000, mỗi ô 2 byte (ký tự + thuộc tính)"},
-    {"id": "keyboard", "points": 40, "expect": {"vga": "hi"},
+    {"id": "keyboard", "points": 40, "expect": {"vga": "hi", "row": 1},
      "concept": "bàn phím PS/2: đọc scancode ở cổng 0x60 khi bit 0 của cổng 0x64 bật, rồi đổi scancode sang ASCII"}
   ],
   "penalties": {"reset": 30, "bad_image": 100}

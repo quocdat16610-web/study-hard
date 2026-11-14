@@ -1,0 +1,8 @@
+{
+  "mode": "module",
+  "template": "module-chardev",
+  "title": "Character device driver đơn giản",
+  "statement": "Viết module `student` đăng ký character device tên `student` (major động). Thiết bị lưu lần ghi gần nhất (tối đa 256 byte) và trả lại khi đọc.",
+  "files": {"required": ["student.c"], "only": ["student.c"], "max_bytes": 32768},
+  "weights": {"compile": 10, "static": 15, "dynamic": 75}
+}

@@ -1,0 +1,16 @@
+{
+  "vm": {"mode": "module", "kernel": "6.6.8-minimal", "initrd": "base", "artifact": "student.ko",
+         "mem_mb": 256, "smp": 1, "timeout": 40},
+  "tests": [
+    {"id": "load",      "points": 10, "concept": "module_init phải trả về 0 sau khi đăng ký thiết bị thành công"},
+    {"id": "register",  "points": 10, "concept": "register_chrdev cấp major number; kernel liệt kê driver trong /proc/devices"},
+    {"id": "node",      "points": 5,  "concept": "device node trong /dev chỉ là cặp (major, minor) trỏ tới file_operations của driver"},
+    {"id": "roundtrip", "points": 20, "concept": "write/read đi qua VFS tới file_operations; dữ liệu phải qua copy_from_user/copy_to_user"},
+    {"id": "overwrite", "points": 10, "concept": "driver phải lưu độ dài dữ liệu hiện có, không phải kích thước buffer"},
+    {"id": "eof",       "points": 15, "concept": "read phải cập nhật *ppos và trả về 0 khi hết dữ liệu, nếu không tiến trình đọc lặp vô hạn"},
+    {"id": "bounds",    "points": 20, "concept": "count do user-space quyết định: phải chặn theo kích thước buffer trước khi copy_from_user"},
+    {"id": "unload",    "points": 5,  "concept": "module_exit chạy khi refcount về 0"},
+    {"id": "cleanup",   "points": 5,  "concept": "mọi thứ đăng ký trong init (major number, bộ nhớ) phải được trả lại trong exit"}
+  ],
+  "penalties": {"panic": 60, "hang": 40, "crash": 40, "warn": 10}
+}

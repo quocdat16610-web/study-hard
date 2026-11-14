@@ -1,4 +1,4 @@
-"""One submission, start to finish: pre-check -> compile -> static -> dynamic. Scoring/feedback hook in after."""
+"""One submission, start to finish: pre-check -> compile -> static -> dynamic -> verdicts -> score."""
 from __future__ import annotations
 
 import json
@@ -8,7 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import compiler, dynamic, labs, precheck, static
+from . import compiler, dynamic, harness, labs, precheck, scoring, static
 from .config import CFG
 from .sandbox.container import own
 
@@ -28,7 +28,7 @@ def grade(sub: dict) -> dict:
     stages["precheck"] = pre = precheck.check(lab, files)
     if not pre.ok:
         report["status"] = "rejected"
-        return _json(report)
+        return _finish(lab, report)
     work = CFG.work_root / sid
     work.mkdir(mode=0o700)
     try:
@@ -48,11 +48,14 @@ def grade(sub: dict) -> dict:
         report |= {"status": "infra_error", "error": f"{type(e).__name__}: {e}"[:500]}
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    return _json(report)
+    return _finish(lab, report)
 
 
-def _json(report: dict) -> dict:
+def _finish(lab: dict, report: dict) -> dict:
     report["stages"] = {k: v.json() for k, v in report["stages"].items()}
+    if report["status"] != "infra_error":  # infrastructure failures are never scored
+        report["tests"] = harness.evaluate(lab, report["stages"].get("dynamic"))
+        report["score"] = scoring.score(lab, report, report["tests"])
     return report
 
 

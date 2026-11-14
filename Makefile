@@ -28,4 +28,7 @@ install:
 snapshot:
 	python3 -m grader.sandbox.qemu snapshot $(TPL)
 
-.PHONY: images kernel initramfs install snapshot
+test:
+	python3 -m pytest -q tests
+
+.PHONY: images kernel initramfs install snapshot test

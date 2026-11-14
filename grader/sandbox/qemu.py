@@ -27,7 +27,7 @@ ZERO = "0" * 32  # fw_cfg "go" value while the guest must keep waiting (snapshot
 VM = "/run/vm"
 LOG_CAP = 256 << 10
 APPEND = "console=ttyS0 loglevel=7 panic=-1 oops=panic softlockup_panic=1 hung_task_panic=1 "\
-         "watchdog_thresh=5 rcupdate.rcu_cpu_stall_timeout=10"
+         "watchdog_thresh=5 rcupdate.rcu_cpu_stall_timeout=10 slub_debug=FZ"
 
 
 class QMP:
