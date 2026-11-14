@@ -18,14 +18,18 @@ let files = {};       // name -> text (editable)
 let current = "";     // open tab
 let marks = {};       // file -> Set(line) with findings
 
-async function api(path, body) {
+async function api(path, body, method) {
   const res = await fetch(path, {
-    method: body ? "POST" : "GET",
+    method: method || (body ? "POST" : "GET"),
     headers: { "X-API-Key": store.get("key") || "", ...(body ? { "Content-Type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 401) { askKey(true); throw new Error("Cần API key."); }
-  if (!res.ok) throw new Error(res.status === 503 ? "Hàng đợi đang đầy, thử lại sau." : `Lỗi ${res.status}`);
+  if (!res.ok) {
+    const e = new Error(res.status === 503 ? "Hệ thống đang hết chỗ, thử lại sau ít giây." : `Lỗi ${res.status}`);
+    e.status = res.status;
+    throw e;
+  }
   return res.json();
 }
 
@@ -92,6 +96,8 @@ async function loadLab(id, fresh) {
   $("statement").textContent = lab.statement;
   $("stdin-box").hidden = lab.mode !== "user";
   $("keys-box").hidden = lab.mode !== "toy";
+  $("live").hidden = lab.mode !== "toy";
+  stopLive();
   drawTabs();
   openTab(Object.keys(files).find((n) => !n.endsWith(".S")) || Object.keys(files)[0]);
   $("result").replaceChildren(h("p", { className: "empty", textContent: "Chưa có kết quả cho bài này." }));
@@ -189,8 +195,129 @@ function show(r) {
     ...(fb.next_steps.length ? [h("h3", { textContent: "Việc nên làm tiếp" }), h("ol", { className: "steps" }, ...fb.next_steps.map((s) => h("li", { textContent: s })))] : []));
 }
 
+// ---- live session (toy kernels) -----------------------------------------------------------
+const NAMED = { Enter: "ret", Backspace: "backspace", Escape: "esc", " ": "spc", ArrowUp: "up", ArrowDown: "down",
+  ArrowLeft: "left", ArrowRight: "right", "-": "minus", "=": "equal", ",": "comma", ".": "dot", "/": "slash",
+  ";": "semicolon", "'": "apostrophe", "[": "bracket_left", "]": "bracket_right", "\\": "backslash", "`": "grave_accent" };
+const SHIFTED = { _: "minus", "+": "equal", "<": "comma", ">": "dot", "?": "slash", ":": "semicolon", '"': "apostrophe",
+  "{": "bracket_left", "}": "bracket_right", "|": "backslash", "~": "grave_accent", "!": "1", "@": "2", "#": "3",
+  $: "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0" };
+const ENDED = { timeout: "Hết thời gian của phiên.", idle: "Phiên tự dừng vì không còn ai theo dõi.", stopped: "Đã dừng.",
+  reset: "Máy ảo đã dừng: kernel làm CPU reset (triple fault) hoặc tự tắt.", infra_error: "Hệ thống gặp sự cố, hãy thử lại.",
+  unsupported: "Bài này không hỗ trợ chạy trực tiếp." };
+let liveId = null;
+let keyBuf = [];
+
+function qcode(key) {  // one character or KeyboardEvent.key -> QEMU key name (with shift+ when needed)
+  if (NAMED[key]) return NAMED[key];
+  if (SHIFTED[key]) return `shift+${SHIFTED[key]}`;
+  if (/^[a-z0-9]$/.test(key)) return key;
+  if (/^[A-Z]$/.test(key)) return `shift+${key.toLowerCase()}`;
+  return key === "\n" ? "ret" : null;
+}
+
+function typeKeys(keys) {
+  if (!liveId || !keys.length) return;
+  if (!keyBuf.length) {
+    setTimeout(() => {  // batch a burst of typing into one request
+      const batch = keyBuf.splice(0, 32);
+      if (liveId && batch.length) api(`/live/${liveId}/keys`, { keys: batch }).catch(() => {});
+    }, 80);
+  }
+  keyBuf.push(...keys);
+}
+
+function stopLive() {
+  if (liveId) api(`/live/${liveId}`, null, "DELETE").catch(() => {});
+}
+
+async function startLive() {
+  saveDraft();
+  stopLive();
+  const bar = h("div", { className: "livebar" }, h("span", { className: "dot" }));
+  const state = h("span", { className: "state", textContent: "Đang biên dịch…" });
+  const stop = h("button", { type: "button", textContent: "■ Dừng", onclick: stopLive });
+  bar.append(state, stop);
+  const view = h("div", {});
+  const serialOut = h("pre", { className: "out", textContent: "(trống)" });
+  const extra = h("div", {});
+  $("result").replaceChildren(bar, view, h("p", { className: "hint", textContent: "Bấm vào màn hình rồi gõ phím để gửi vào kernel. Trên điện thoại: nhập vào ô “Phím gõ” rồi nhấn Enter." }),
+    h("h3", { textContent: "Cổng serial (COM1)" }), serialOut, extra);
+  let id;
+  try {
+    ({ id } = await api("/live", { lab: lab.id, files }));
+  } catch (e) {
+    state.textContent = e.message;
+    stop.remove();
+    return;
+  }
+  liveId = id;
+  let after = -1;
+  let wrap = null;
+  let deadline = 0;  // frames only arrive when the screen changes, so the countdown ticks locally
+  const clock = setInterval(() => {
+    if (deadline) state.textContent = `Đang chạy trực tiếp · còn ${Math.max(0, Math.round((deadline - Date.now()) / 1000))} giây`;
+  }, 1000);
+  try {
+    while (liveId === id) {
+      const f = await api(`/live/${id}?after=${after}`);
+      if (liveId !== id) break;  // a newer session took over this panel
+      const stale = f.seq === after;  // the long-poll timed out and returned the frame we already have
+      after = f.seq;
+      if (f.text && !stale) {
+        const fresh = screen(f);
+        if (wrap) {
+          wrap.replaceChildren(...fresh.childNodes);  // keep the focused element in place
+        } else {
+          wrap = fresh;
+          wrap.tabIndex = 0;
+          wrap.setAttribute("role", "application");
+          wrap.setAttribute("aria-label", "Màn hình kernel đang chạy. Gõ phím để gửi vào kernel.");
+          wrap.addEventListener("keydown", (e) => {
+            if (e.ctrlKey || e.metaKey || e.altKey || e.key === "Tab") return;  // browser shortcuts and focus keep working
+            const k = qcode(e.key);
+            if (k) { e.preventDefault(); typeKeys([k]); }
+          });
+          view.replaceChildren(h("h3", { textContent: "Màn hình kernel (trực tiếp)" }), wrap);
+          wrap.focus({ preventScroll: true });
+        }
+        serialOut.textContent = f.serial || "(trống)";
+      }
+      if (f.state === "running") {
+        bar.classList.add("on");
+        if (!stale) {
+          deadline = Date.now() + f.left * 1000;
+          state.textContent = `Đang chạy trực tiếp · còn ${f.left} giây`;
+        }
+      } else if (f.state === "queued") {
+        state.textContent = "Đang chờ tới lượt…";
+      } else if (f.state === "ended") {
+        deadline = 0;
+        bar.classList.remove("on");
+        stop.remove();
+        const fb = f.feedback;
+        state.textContent = fb ? fb.summary : ENDED[f.reason] || "Phiên đã kết thúc.";
+        if (fb) {
+          marks = {};
+          for (const i of fb.items) if (i.file) (marks[i.file] ||= new Set()).add(i.line);
+          drawGutter();
+          extra.replaceChildren(h("h3", { textContent: "Nhận xét" }), ...fb.items.map(item));
+        }
+        break;
+      }
+    }
+  } catch (e) {
+    bar.classList.remove("on");
+    state.textContent = e.status === 404 ? "Phiên đã hết hạn." : e.message;
+  } finally {
+    clearInterval(clock);
+    if (liveId === id) liveId = null;
+  }
+}
+
 async function send(kind) {
   saveDraft();
+  stopLive();
   const body = { lab: lab.id, files };
   if (kind === "run" && lab.mode === "user") body.stdin = $("stdin").value;
   if (kind === "run" && lab.mode === "toy") {
@@ -233,6 +360,13 @@ $("code").addEventListener("keydown", (e) => {
 });
 $("lab").addEventListener("change", () => { store.set("lab", $("lab").value); loadLab($("lab").value).catch((e) => { $("busy").textContent = e.message; }); });
 $("run").addEventListener("click", () => send("run"));
+$("live").addEventListener("click", startLive);
+$("keys").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || !liveId) return;
+  e.preventDefault();
+  typeKeys([...$("keys").value].map(qcode).filter(Boolean).concat("ret"));
+  $("keys").value = "";
+});
 $("submit").addEventListener("click", () => send("grade"));
 $("reset").addEventListener("click", () => { if (confirm("Bỏ mã hiện tại và quay về mã ban đầu của bài?")) loadLab(lab.id, true); });
 $("key-btn").addEventListener("click", () => askKey(false));

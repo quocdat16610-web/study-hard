@@ -1,6 +1,7 @@
 """Submission API. It only validates and enqueues; it never touches student code."""
 from __future__ import annotations
 
+import asyncio
 import json
 import secrets
 import uuid
@@ -52,6 +53,11 @@ class Run(Submission):
     keys: list[Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]{1,16}$")]] = Field(default=[], max_length=64)
 
 
+class Keys(BaseModel):
+    keys: list[Annotated[str, StringConstraints(pattern=r"^(?:(?:shift|ctrl|alt)\+){0,3}[a-z0-9_]{1,16}$")]] = Field(
+        min_length=1, max_length=32)
+
+
 async def guard(request: Request, x_api_key: Annotated[str, Header()] = "") -> None:
     if not secrets.compare_digest(x_api_key.encode(), CFG.api_key.encode()):
         raise HTTPException(401)
@@ -97,6 +103,65 @@ async def _enqueue(sub: Submission, queue: str, kind: str) -> dict:
         tx.lpush(queue, sid)
         await tx.execute()
     return {"id": sid, "status": "queued"}
+
+
+@app.post("/live", status_code=202, dependencies=[Depends(guard)])
+async def live_start(sub: Submission) -> dict:
+    """Boot a toy kernel and keep it running; watch it with GET /live/{id}, type with POST /live/{id}/keys."""
+    try:
+        if labs.load(sub.lab)["mode"] != "toy":
+            raise HTTPException(400, "live sessions are for toy-kernel labs")
+    except KeyError:
+        raise HTTPException(404, "unknown lab") from None
+    if await db.llen(q.LIVE_QUEUE) >= CFG.live_max:
+        raise HTTPException(503, "no live slot free", headers={"Retry-After": "15"})
+    sid = uuid.uuid4().hex
+    async with db.pipeline(transaction=True) as tx:
+        tx.set(q.job(sid), sub.model_dump_json(), ex=300)
+        tx.set(q.live(sid, "frame"), json.dumps({"id": sid, "seq": 0, "state": "queued"}), ex=600)
+        tx.set(q.live(sid, "seen"), 1, ex=30)
+        tx.lpush(q.LIVE_QUEUE, sid)
+        await tx.execute()
+    return {"id": sid, "state": "queued", "max_seconds": CFG.live_seconds}
+
+
+@app.get("/live/{sid}", dependencies=[Depends(guard)])
+async def live_frame(sid: str, after: int = -1) -> dict:
+    """Long-poll: returns as soon as there is a frame newer than `after` (or after ~2 s with the same one).
+    Polling is also the heartbeat: a session nobody polls is stopped."""
+    if not pipeline.ID.fullmatch(sid):
+        raise HTTPException(404)
+    for _ in range(20):
+        raw = await db.get(q.live(sid, "frame"))
+        if raw is None:
+            raise HTTPException(404)
+        frame = json.loads(raw)
+        await db.set(q.live(sid, "seen"), 1, ex=8)
+        if frame["seq"] > after or frame["state"] == "ended":
+            break
+        await asyncio.sleep(0.1)
+    return frame
+
+
+@app.post("/live/{sid}/keys", status_code=202, dependencies=[Depends(guard)])
+async def live_keys(sid: str, body: Keys) -> dict:
+    if not pipeline.ID.fullmatch(sid) or not await db.exists(q.live(sid, "frame")):
+        raise HTTPException(404)
+    if await db.llen(q.live(sid, "keys")) > 256:
+        raise HTTPException(429)
+    async with db.pipeline(transaction=True) as tx:
+        tx.rpush(q.live(sid, "keys"), *body.keys)
+        tx.expire(q.live(sid, "keys"), 60)
+        await tx.execute()
+    return {"queued": len(body.keys)}
+
+
+@app.delete("/live/{sid}", status_code=202, dependencies=[Depends(guard)])
+async def live_stop(sid: str) -> dict:
+    if not pipeline.ID.fullmatch(sid) or not await db.exists(q.live(sid, "frame")):
+        raise HTTPException(404)
+    await db.set(q.live(sid, "stop"), 1, ex=600)
+    return {"state": "stopping"}
 
 
 @app.get("/submissions/{sid}", dependencies=[Depends(guard)])

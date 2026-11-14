@@ -1,6 +1,7 @@
 """One submission, start to finish: pre-check -> compile -> static -> dynamic -> verdicts -> score -> feedback."""
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -42,6 +43,29 @@ def _process(sub: dict, try_run: bool) -> dict:
     if not pre.ok:
         report["status"] = "rejected"
         return _finish(lab, report, files)
+    try:
+        with workspace(sid, lab, files) as work:
+            stages["compile"] = comp = compiler.build(lab, work)
+            if not try_run:
+                stages["static"] = static.analyze(lab, work, files)
+            if comp.ok and try_run:
+                keys = sub.get("keys") or []
+                stages["dynamic"] = dynamic.run(
+                    lab, work, sid, set(files), tests=[{"id": "run", "stdin": sub.get("stdin", "")}],
+                    script=[{"wait": 2}, {"keys": keys}, {"wait": 1}] if keys else None)
+            elif comp.ok:
+                stages["dynamic"] = dynamic.run(lab, work, sid, set(files))
+            else:
+                report["status"] = "compile_error"
+    except Exception as e:  # infrastructure, not the student: never scored, never shown verbatim
+        log.exception("submission %s failed", sid)
+        report |= {"status": "infra_error", "error": f"{type(e).__name__}: {e}"[:500]}
+    return _finish(lab, report, files)
+
+
+@contextlib.contextmanager
+def workspace(sid: str, lab: dict, files: dict[str, str]):
+    """Per-submission scratch dir holding the upload plus the lab scaffold; always removed."""
     work = CFG.work_root / sid
     work.mkdir(mode=0o700)
     try:
@@ -50,24 +74,9 @@ def _process(sub: dict, try_run: bool) -> dict:
         for name, data in labs.scaffold(lab).items():  # scaffold always wins over a same-named upload
             (work / name).write_bytes(data)
         own(work)
-        stages["compile"] = comp = compiler.build(lab, work)
-        if not try_run:
-            stages["static"] = static.analyze(lab, work, files)
-        if comp.ok and try_run:
-            keys = sub.get("keys") or []
-            stages["dynamic"] = dynamic.run(
-                lab, work, sid, set(files), tests=[{"id": "run", "stdin": sub.get("stdin", "")}],
-                script=[{"wait": 2}, {"keys": keys}, {"wait": 1}] if keys else None)
-        elif comp.ok:
-            stages["dynamic"] = dynamic.run(lab, work, sid, set(files))
-        else:
-            report["status"] = "compile_error"
-    except Exception as e:  # infrastructure, not the student: never scored, never shown verbatim
-        log.exception("submission %s failed", sid)
-        report |= {"status": "infra_error", "error": f"{type(e).__name__}: {e}"[:500]}
+        yield work
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    return _finish(lab, report, files)
 
 
 def _finish(lab: dict, report: dict, files: dict[str, str]) -> dict:

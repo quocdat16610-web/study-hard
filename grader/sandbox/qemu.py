@@ -5,6 +5,7 @@ reads its serial log; the 9p export is read-only; snapshots are read-only.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -88,7 +89,7 @@ def _snap(vm: dict) -> Path:
 
 
 def _box(vm: dict, rt: Path, nonce: str = ZERO, *, qmp: bool = False, incoming: Path | None = None,
-         timeout: float | None = None, fsize_mb: int = 16) -> Box:
+         timeout: float | None = None, fsize_mb: int = 16, cpus: float | None = None) -> Box:
     kvm, root, smp = _kvm(), CFG.qemu_root, vm.get("smp", 1)
     a = ["qemu-system-x86_64", *shlex.split((root / "configs/qemu-common.conf").read_text(), comments=True),
          "-machine", f"q35,accel={'kvm' if kvm else 'tcg'}", "-cpu", "host" if kvm else "max",
@@ -107,7 +108,7 @@ def _box(vm: dict, rt: Path, nonce: str = ZERO, *, qmp: bool = False, incoming: 
               "-fw_cfg", f"name=opt/grader/go,string={nonce}"]
     if incoming:
         a += ["-incoming", f"file:/img/snapshots/{incoming.name}"]
-    lim = Limits(timeout=timeout or vm.get("timeout", 30), mem_mb=vm["mem_mb"] + 256, cpus=smp,
+    lim = Limits(timeout=timeout or vm.get("timeout", 30), mem_mb=vm["mem_mb"] + 256, cpus=cpus or smp,
                  pids=64, fsize_mb=fsize_mb, out_cap=64 << 10)
     mounts = [(rt, VM, True), *((root / n, f"/img/{n}", False) for n in ("kernels", "initrds", "snapshots"))]
     return Box(CFG.qemu_image, a, lim, mounts=mounts, seccomp=root / "configs/seccomp-qemu.json",
@@ -181,6 +182,54 @@ def run(sid: str, tpl: str, artifact: Path, script: list[dict] | None = None) ->
         logs.mkdir(parents=True, exist_ok=True)
         (logs / f"{sid}.log").write_bytes(raw)
         return out
+    finally:
+        shutil.rmtree(rt, ignore_errors=True)
+
+
+class Live:
+    """A running toy kernel the host can look at and type into. No network, no VNC: the screen is
+    the VGA text buffer read through QMP, keys go in through QMP."""
+
+    def __init__(self, box: Box, rt: Path):
+        self.box, self.rt = box, rt
+        self.q = QMP(rt / "qmp.sock", self.alive)
+
+    def alive(self) -> bool:
+        return self.box.p.poll() is None
+
+    def screen(self) -> bytes:
+        self.q.cmd("pmemsave", val=0xB8000, size=4000, filename=f"{VM}/vga.bin")
+        return (self.rt / "vga.bin").read_bytes()
+
+    def serial(self) -> str:
+        f = self.rt / "serial.log"
+        return f.read_bytes()[-4000:].decode("utf-8", "replace") if f.exists() else ""
+
+    def press(self, chord: list[str]) -> None:
+        self.q.cmd("send-key", keys=[{"type": "qcode", "data": k} for k in chord], **{"hold-time": 30})
+        time.sleep(0.04)
+
+    def stop(self) -> None:
+        try:
+            self.q.cmd("quit")
+        except (OSError, RuntimeError):
+            pass
+
+
+@contextlib.contextmanager
+def live(sid: str, tpl: str, artifact: Path, seconds: float):
+    """Boot a toy kernel and keep it up for at most `seconds`; everything is torn down on exit."""
+    _, vm = _spec(tpl)
+    if vm["mode"] != "toy":
+        raise ValueError("live sessions are for toy kernels")
+    rt = _runtime(sid)
+    try:
+        with open(os.open(artifact, os.O_RDONLY | os.O_NOFOLLOW), "rb") as src, \
+                open(rt / "shared" / vm["artifact"], "wb") as dst:
+            shutil.copyfileobj(src, dst)
+        own(rt)
+        with _box(vm, rt, qmp=True, timeout=seconds, cpus=0.5) as box:
+            yield Live(box, rt)
     finally:
         shutil.rmtree(rt, ignore_errors=True)
 

@@ -19,6 +19,8 @@ class Config:
     redis_url: str = _e("REDIS_URL", "redis://127.0.0.1:6379/0")
     api_key: str = _e("API_KEY", "")
     worker_id: str = _e("WORKER_ID", os.uname().nodename)
+    live_max: int = int(_e("LIVE_MAX", "4"))
+    live_seconds: int = int(_e("LIVE_SECONDS", "120"))
     cgroup_parent: str = _e("CGROUP_PARENT", "grader.slice")
     allow_tcg: bool = _e("ALLOW_TCG", "0") == "1"
     uid: int = int(_e("UID", str(os.getuid() or 65534)))

@@ -48,6 +48,15 @@ services:
     depends_on: [redis]
     restart: unless-stopped
 
+  live:  # interactive toy-kernel sessions (same privileges and mounts as the worker)
+    extends: {service: worker}
+    command: ["python", "-m", "grader.live"]
+    hostname: live-1
+    environment:
+      GRADER_REDIS_URL: redis://redis:6379/0
+      GRADER_LIVE_MAX: "4"
+      GRADER_LIVE_SECONDS: "120"
+
 networks:
   internal: {internal: true}
   edge: {}
