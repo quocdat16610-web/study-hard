@@ -3,9 +3,7 @@
 #include <linux/uaccess.h>
 
 #define CAP 256
-static char data[CAP];
-static size_t len;
-static int major;
+/* TODO: khai báo trạng thái của driver: buffer CAP byte, độ dài dữ liệu đang lưu, major number */
 
 static ssize_t dev_read(struct file *f, char __user *ubuf, size_t count, loff_t *ppos)
 {
