@@ -1,0 +1,83 @@
+{
+ "mode": "toy",
+ "template": "toy-kernel",
+ "track": "Giao diện OS (text mode)",
+ "level": 5,
+ "title": "5. Cuộn màn hình",
+ "statement": "Bổ sung cuộn cho console: khi con trỏ vượt quá hàng cuối, dịch toàn bộ nội dung lên một hàng và xoá hàng cuối. Kernel in `line 0` tới `line 29`, mỗi dòng kết thúc bằng xuống dòng.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "tests": [
+  {
+   "id": "boots",
+   "points": 10,
+   "expect": {
+    "serial": "UI OK"
+   },
+   "concept": "serial là kênh gỡ lỗi đầu tiên của mọi kernel: nó hoạt động trước cả khi màn hình được thiết lập"
+  },
+  {
+   "id": "top",
+   "points": 40,
+   "expect": {
+    "cells": [
+     {
+      "row": 0,
+      "col": 0,
+      "text": "line 6 "
+     },
+     {
+      "row": 1,
+      "col": 0,
+      "text": "line 7 "
+     }
+    ]
+   },
+   "concept": "cuộn = dịch 24 hàng lên trên trong bộ nhớ; vùng nguồn và đích chồng nhau nên chiều sao chép quan trọng"
+  },
+  {
+   "id": "bottom",
+   "points": 30,
+   "expect": {
+    "cells": [
+     {
+      "row": 23,
+      "col": 0,
+      "text": "line 29 "
+     },
+     {
+      "row": 22,
+      "col": 0,
+      "text": "line 28 "
+     }
+    ]
+   },
+   "concept": "sau khi cuộn, con trỏ phải nằm ở hàng cuối, không phải ngoài màn hình"
+  },
+  {
+   "id": "last-row",
+   "points": 20,
+   "expect": {
+    "row": 24,
+    "vga_re": "^$"
+   },
+   "concept": "hàng cuối phải được xoá sau khi dịch, nếu không nội dung cũ bị lặp lại"
+  }
+ ]
+}

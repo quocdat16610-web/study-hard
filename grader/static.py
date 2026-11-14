@@ -15,6 +15,10 @@ TIDY = ("-*,clang-analyzer-*,bugprone-*,concurrency-*,cppcoreguidelines-owning-m
         "modernize-make-shared,performance-unnecessary-copy-initialization,performance-for-range-copy,"
         "-bugprone-easily-swappable-parameters,-bugprone-narrowing-conversions,-bugprone-exception-escape,"
         "-bugprone-reserved-identifier,-clang-analyzer-optin.performance*")
+# Freestanding code has no smart pointers or std containers: keep only the bug-finding checks.
+TIDY_BARE = ("-*,clang-analyzer-*,bugprone-*,-bugprone-easily-swappable-parameters,-bugprone-narrowing-conversions,"
+             "-bugprone-reserved-identifier,-bugprone-implicit-widening-of-multiplication-result,"
+             "-clang-analyzer-optin.performance*")
 CPPCHECK = "{file}:{line}:{column}: {severity}: {message} [cppcheck-{id}]"
 SOURCE = (".cpp", ".cc", ".cxx", ".c")
 
@@ -57,7 +61,7 @@ def analyze(lab: dict, work: Path, files: dict[str, str]) -> Stage:
     cxx = [f for f in srcs if not f.endswith(".c")]
     if mode != "module" and cxx:  # kernel headers are not something clang-tidy can digest standalone
         flags = [f"-std={std}", "-Wall", "-Wextra"] + (["-m32", "-ffreestanding", "-fno-exceptions"] if mode == "toy" else [])
-        tools.append(["clang-tidy", "--quiet", f"--checks={lab.get('tidy', TIDY)}", *cxx, "--", *flags])
+        tools.append(["clang-tidy", "--quiet", f"--checks={lab.get('tidy', TIDY if mode == 'user' else TIDY_BARE)}", *cxx, "--", *flags])
     for cmd in tools if srcs else []:
         r = user.run(work, cmd, lim=LIM)
         log = (r.stdout + r.stderr).decode("utf-8", "replace")

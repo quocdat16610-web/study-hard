@@ -133,6 +133,9 @@ def _drive(box: Box, rt: Path, script: list[dict]) -> bool:
             for key in step.get("keys", []):
                 q.cmd("send-key", keys=[{"type": "qcode", "data": key}])
                 time.sleep(0.05)
+            if NAME.fullmatch(step.get("snap", "")):  # mid-script screenshot for multi-step UI tests
+                time.sleep(0.3)
+                q.cmd("pmemsave", val=0xB8000, size=4000, filename=f"{VM}/snap-{step['snap']}.bin")
         q.cmd("pmemsave", val=0xB8000, size=4000, filename=f"{VM}/vga.bin")
         q.cmd("quit")
         return True
@@ -171,7 +174,9 @@ def run(sid: str, tpl: str, artifact: Path, script: list[dict] | None = None) ->
             vga = rt / "vga.bin"
             out |= {"status": "ok" if alive or r.exit_code & 1 else "hang" if r.timed_out else "reset",
                     "vga": serial.vga_text(vga.read_bytes()) if vga.exists() else None,
-                    "vga_attr": serial.vga_attrs(vga.read_bytes()) if vga.exists() else None}
+                    "vga_attr": serial.vga_attrs(vga.read_bytes()) if vga.exists() else None,
+                    "snaps": {p.stem[5:]: {"text": serial.vga_text(p.read_bytes()), "attr": serial.vga_attrs(p.read_bytes())}
+                              for p in sorted(rt.glob("snap-*.bin"))}}
         else:
             tests, done = serial.parse(log, nonce)
             fail = serial.failure(log)

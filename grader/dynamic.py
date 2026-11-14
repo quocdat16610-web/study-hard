@@ -30,7 +30,7 @@ def run(lab: dict, work: Path, sid: str, files: set[str], tests: list[dict] | No
         script: list[dict] | None = None) -> Stage:
     """Grading uses the lab's tests; a try-run passes its own single test (user) or key script (toy)."""
     if lab["mode"] != "user":
-        res = qemu.run(sid, lab["template"], work / lab["vm"]["artifact"], script)
+        res = qemu.run(sid, lab["template"], work / lab["vm"]["artifact"], script or lab["vm"].get("script"))
         if res["status"] == "infra_error":
             raise RuntimeError(f"qemu: {res['qemu_stderr'][-300:]}")
         return Stage(res["status"] == "ok", [], res)

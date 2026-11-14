@@ -88,18 +88,35 @@ def _module(lab: dict, data: dict) -> list[dict]:
             for t in lab["tests"]]
 
 
+def _cell(shot: dict, c: dict) -> dict | None:
+    """One screen-cell expectation {row, col, text?, len?, attr?}; returns what differed, or None."""
+    row, col = c["row"], c["col"]
+    n = len(c["text"]) if "text" in c else c.get("len", 1)
+    got = (shot["text"][row].replace("\x00", " ").ljust(80))[col:col + n]
+    attr = shot["attr"][row][col * 2:(col + n) * 2]
+    if ("text" in c and got != c["text"]) or ("attr" in c and attr != c["attr"].lower() * n):
+        return {"row": row, "col": col, "expected": c.get("text"), "got": got,
+                "expected_attr": c.get("attr"), "got_attr": attr[:2]}
+    return None
+
+
 def _toy(lab: dict, data: dict) -> list[dict]:
-    serial, vga, out = data.get("serial") or "", data.get("vga") or [], []
+    serial, out = data.get("serial") or "", []
+    final = {"text": data.get("vga"), "attr": data.get("vga_attr")}
     for t in lab["tests"]:
         exp = t.get("expect", {})
-        screen = vga[exp["row"]] if "row" in exp and exp["row"] < len(vga) else "\n".join(vga)
+        shot = data.get("snaps", {}).get(exp["at"]) if "at" in exp else final  # "at": a named mid-script snapshot
+        rows = (shot or {}).get("text") or []
+        screen = rows[exp["row"]] if "row" in exp and exp["row"] < len(rows) else "\n".join(rows)
+        bad = next((d for c in exp.get("cells", []) if (d := _cell(shot, c))), None) if rows else None
         checks = {"serial": exp.get("serial") is None or exp["serial"] in serial,
                   "serial_re": exp.get("serial_re") is None or re.search(exp["serial_re"], serial) is not None,
                   "vga": exp.get("vga") is None or exp["vga"] in screen,
-                  "vga_re": exp.get("vga_re") is None or re.search(exp["vga_re"], screen) is not None}
+                  "vga_re": exp.get("vga_re") is None or re.search(exp["vga_re"], screen) is not None,
+                  "cells": not exp.get("cells") or (bool(rows) and bad is None)}
         missed = [k for k, ok in checks.items() if not ok]
         out.append(_verdict(t, not missed, "ok" if not missed else "failed",
-                            None if not missed else {"missed": missed, "status": data.get("status"),
+                            None if not missed else {"missed": missed, "status": data.get("status"), "cell": bad,
                                                      "screen": screen[:SNIP], "serial": serial[-SNIP:]}))
     return out
 

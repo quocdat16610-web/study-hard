@@ -208,7 +208,8 @@ REASONS = {
 }
 SIGNALS = {"SIGSEGV": "truy cập bộ nhớ không hợp lệ", "SIGABRT": "abort (assert/exception không bắt)", "SIGFPE": "lỗi số học, thường là chia cho 0",
            "SIGBUS": "truy cập bộ nhớ sai căn lề", "SIGILL": "lệnh CPU không hợp lệ", "SIGKILL": "bị hệ thống dừng"}
-TOY_MISSED = {"serial": "không thấy chuỗi mong đợi trên cổng serial COM1", "serial_re": "output serial không khớp mẫu mong đợi",
+TOY_MISSED = {"cells": "một ô trên màn hình chưa đúng ký tự hoặc màu",
+              "serial": "không thấy chuỗi mong đợi trên cổng serial COM1", "serial_re": "output serial không khớp mẫu mong đợi",
               "vga": "không thấy nội dung mong đợi trên màn hình VGA", "vga_re": "nội dung màn hình VGA không khớp mẫu mong đợi"}
 
 # --- kernel failures / VM statuses: (title, explain, hint, concept) ---------------------------

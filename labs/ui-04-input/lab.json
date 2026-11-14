@@ -1,0 +1,94 @@
+{
+ "mode": "toy",
+ "template": "toy-kernel",
+ "track": "Giao diện OS (text mode)",
+ "level": 4,
+ "title": "4. Bàn phím: nhập một dòng",
+ "statement": "In dấu nhắc `> `, hiển thị các phím người dùng gõ, hỗ trợ Backspace. Khi nhấn Enter, in `You typed: <nội dung>` ở dòng kế tiếp rồi in dấu nhắc mới.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "script": [
+  {
+   "wait": 2
+  },
+  {
+   "keys": [
+    "h",
+    "e",
+    "l",
+    "p",
+    "x",
+    "backspace",
+    "ret"
+   ]
+  },
+  {
+   "wait": 1
+  }
+ ],
+ "tests": [
+  {
+   "id": "echo",
+   "points": 30,
+   "expect": {
+    "cells": [
+     {
+      "row": 0,
+      "col": 0,
+      "text": "> help"
+     }
+    ]
+   },
+   "concept": "mỗi phím sinh hai scancode (nhấn và nhả); bit 7 bật nghĩa là nhả phím"
+  },
+  {
+   "id": "backspace",
+   "points": 30,
+   "expect": {
+    "cells": [
+     {
+      "row": 0,
+      "col": 0,
+      "text": "> help  "
+     }
+    ]
+   },
+   "concept": "Backspace phải sửa cả bộ đệm lẫn màn hình: lùi con trỏ và xoá ô vừa lùi qua"
+  },
+  {
+   "id": "enter",
+   "points": 40,
+   "expect": {
+    "cells": [
+     {
+      "row": 1,
+      "col": 0,
+      "text": "You typed: help "
+     },
+     {
+      "row": 2,
+      "col": 0,
+      "text": ">  "
+     }
+    ]
+   },
+   "concept": "bộ đệm dòng là nguồn sự thật; màn hình chỉ là hình ảnh của nó"
+  }
+ ]
+}

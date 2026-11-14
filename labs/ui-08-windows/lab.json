@@ -1,0 +1,183 @@
+{
+ "mode": "toy",
+ "template": "toy-kernel",
+ "track": "Giao diện OS (text mode)",
+ "level": 8,
+ "title": "8. Nhiều cửa sổ, focus và thứ tự chồng",
+ "statement": "Quản lý hai cửa sổ chồng nhau: A tại (2, 5) và B tại (6, 20), mỗi cái cao 10, rộng 30. Cửa sổ có focus được vẽ sau cùng (nằm trên) và có thanh tiêu đề 0x1F; cửa sổ kia 0x70. Tab đổi focus; ký tự gõ vào được thêm vào dòng đầu của cửa sổ đang focus.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "script": [
+  {
+   "wait": 2
+  },
+  {
+   "snap": "start"
+  },
+  {
+   "keys": [
+    "x",
+    "tab",
+    "y"
+   ]
+  },
+  {
+   "wait": 0.4
+  },
+  {
+   "snap": "second"
+  },
+  {
+   "keys": [
+    "tab",
+    "z"
+   ]
+  },
+  {
+   "wait": 1
+  }
+ ],
+ "tests": [
+  {
+   "id": "initial",
+   "points": 20,
+   "expect": {
+    "at": "start",
+    "cells": [
+     {
+      "row": 2,
+      "col": 5,
+      "text": "┌",
+      "attr": "1f"
+     },
+     {
+      "row": 2,
+      "col": 7,
+      "text": " A ",
+      "attr": "1f"
+     },
+     {
+      "row": 6,
+      "col": 20,
+      "text": " ",
+      "attr": "70"
+     },
+     {
+      "row": 6,
+      "col": 40,
+      "text": "─",
+      "attr": "70"
+     },
+     {
+      "row": 15,
+      "col": 49,
+      "text": "┘"
+     }
+    ]
+   },
+   "concept": "thuật toán hoạ sĩ: vẽ từ sau ra trước, cửa sổ có focus vẽ sau cùng nên nằm trên"
+  },
+  {
+   "id": "focus-switch",
+   "points": 30,
+   "expect": {
+    "at": "second",
+    "cells": [
+     {
+      "row": 6,
+      "col": 20,
+      "text": "┌",
+      "attr": "1f"
+     },
+     {
+      "row": 6,
+      "col": 22,
+      "text": " B ",
+      "attr": "1f"
+     },
+     {
+      "row": 2,
+      "col": 5,
+      "text": "┌",
+      "attr": "70"
+     },
+     {
+      "row": 2,
+      "col": 7,
+      "text": " A ",
+      "attr": "70"
+     }
+    ]
+   },
+   "concept": "focus phải nhìn thấy được: thanh tiêu đề đổi màu và cửa sổ nổi lên trên"
+  },
+  {
+   "id": "input-routing",
+   "points": 25,
+   "expect": {
+    "at": "second",
+    "cells": [
+     {
+      "row": 3,
+      "col": 6,
+      "text": "x "
+     },
+     {
+      "row": 7,
+      "col": 21,
+      "text": "y "
+     }
+    ]
+   },
+   "concept": "sự kiện bàn phím được chuyển tới cửa sổ đang có focus, không phải tới màn hình"
+  },
+  {
+   "id": "restore",
+   "points": 25,
+   "expect": {
+    "cells": [
+     {
+      "row": 3,
+      "col": 6,
+      "text": "xz "
+     },
+     {
+      "row": 7,
+      "col": 21,
+      "text": " ",
+      "attr": "70"
+     },
+     {
+      "row": 2,
+      "col": 5,
+      "text": "┌",
+      "attr": "1f"
+     },
+     {
+      "row": 6,
+      "col": 40,
+      "text": "─",
+      "attr": "70"
+     }
+    ]
+   },
+   "concept": "nội dung thuộc về cửa sổ chứ không thuộc về màn hình: nhờ vậy phần từng bị che mới vẽ lại được"
+  }
+ ]
+}

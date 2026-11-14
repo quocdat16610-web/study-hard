@@ -117,6 +117,11 @@ def _test(lab: dict, v: dict, spec: dict) -> dict:
         msg += " Cụ thể: " + "; ".join(M.TOY_MISSED[m] for m in d.get("missed", [])) + "."
         if not hidden and "vga" in d.get("missed", []):
             msg += f" Mong đợi thấy `{spec['expect']['vga']}`, màn hình đang là `{d['screen'].strip()[:80]}`."
+        if not hidden and "vga_re" in d.get("missed", []) and "row" in spec["expect"]:
+            msg += f" Hàng {spec['expect']['row']} đang là `{d['screen'].rstrip()[:80]}`."
+        if not hidden and (c := d.get("cell")):
+            want = (f"`{c['expected']}`" if c["expected"] is not None else "") + (f" màu 0x{c['expected_attr']}" if c["expected_attr"] else "")
+            msg += f" Tại hàng {c['row']}, cột {c['col']}: mong đợi {want.strip()}, đang là `{c['got']}` màu 0x{c['got_attr']}."
     elif reason == "not-run" and d.get("status") in M.KERNEL:
         msg += f" Lý do: {M.KERNEL[d['status']][0].lower()}."
     return out | {"reason": reason, "message": msg, "hint": hint, "concept": v["concept"]}

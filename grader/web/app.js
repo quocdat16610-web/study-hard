@@ -4,7 +4,7 @@
 const $ = (id) => document.getElementById(id);
 const h = (tag, props = {}, ...kids) => {
   const e = Object.assign(document.createElement(tag), props);
-  e.append(...kids.filter((k) => k != null));
+  e.append(...kids.filter((k) => k != null && k !== false && k !== ""));
   return e;
 };
 const store = {
@@ -39,6 +39,76 @@ function askKey(wrong) {
 }
 
 // ---- editor -------------------------------------------------------------------------------
+// ---- syntax highlighting ------------------------------------------------------------------
+const KEYWORDS = new Set(("alignas alignof asm auto break case catch class const constexpr const_cast continue default delete do " +
+  "dynamic_cast else enum explicit extern false for friend goto if inline namespace new noexcept nullptr operator private " +
+  "protected public reinterpret_cast return sizeof static static_cast struct switch template this throw true try typedef " +
+  "typename union using virtual volatile while __init __exit __user NULL").split(" "));
+const TYPES = new Set(("bool char double float int long short signed unsigned void size_t ssize_t loff_t u8 u16 u32 u64 " +
+  "uint8_t uint16_t uint32_t uint64_t int8_t int16_t int32_t int64_t").split(" "));
+const CPP = /(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|("(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?)|(^[ \t]*#[ \t]*[a-z_]+)|(\b(?:0[xX][0-9a-fA-F]+|\d+(?:\.\d+)?)[uUlLfF]*\b)|([A-Za-z_]\w*)/gm;
+const ASM = /(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|("(?:\\.|[^"\\\n])*"?)|(^[ \t]*[A-Za-z_.]\w*:)|(\$?-?\b(?:0[xX][0-9a-fA-F]+|\d+)\b)|(\.[a-z_]+\b|%[a-z0-9]+)/gm;
+
+function highlight(text, name) {
+  const asm = name.endsWith(".S");
+  const re = asm ? ASM : CPP;
+  const out = [];
+  let last = 0;
+  re.lastIndex = 0;
+  for (let m; (m = re.exec(text));) {
+    let cls = m[1] ? "comment" : m[2] ? "string" : m[3] ? "pre" : m[4] ? "number" : null;
+    if (m[5]) cls = asm ? (m[5][0] === "%" ? "type" : "keyword") : KEYWORDS.has(m[5]) ? "keyword" : TYPES.has(m[5]) ? "type" : null;
+    if (!cls) continue;
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push(h("span", { className: `t-${cls}`, textContent: m[0] }));
+    last = m.index + m[0].length;
+  }
+  out.push(text.slice(last) + "\n");  // trailing newline keeps the last line as tall as the textarea's
+  return out;
+}
+
+function drawCode() {
+  $("hl").replaceChildren(...highlight($("code").value, current));
+  syncScroll();
+  drawGutter();
+}
+
+function syncScroll() {
+  $("hl").scrollTop = $("gutter").scrollTop = $("code").scrollTop;
+  $("hl").scrollLeft = $("code").scrollLeft;
+}
+
+// ---- lesson text (a tiny Markdown subset, built with textContent only) ---------------------
+function inline(text) {
+  return text.split(/(`[^`]+`|\*\*[^*]+\*\*)/).filter(Boolean).map((part) =>
+    part[0] === "`" ? h("code", { textContent: part.slice(1, -1) })
+      : part.startsWith("**") ? h("strong", { textContent: part.slice(2, -2) }) : part);
+}
+
+function renderLesson(md) {
+  const out = [];
+  let list = null;
+  let code = null;
+  for (const line of md.split("\n")) {
+    if (line.startsWith("```")) {
+      if (code) { out.push(h("pre", { textContent: code.join("\n") })); code = null; } else code = [];
+      continue;
+    }
+    if (code) { code.push(line); continue; }
+    const item = line.match(/^(-|\d+\.) (.*)$/);
+    if (item) {
+      const tag = item[1] === "-" ? "UL" : "OL";
+      if (!list || list.tagName !== tag) { list = h(tag.toLowerCase()); out.push(list); }
+      list.append(h("li", {}, ...inline(item[2])));
+      continue;
+    }
+    list = null;
+    if (line.startsWith("# ")) out.push(h("h4", { textContent: line.slice(2) }));
+    else if (line.trim()) out.push(h("p", {}, ...inline(line)));
+  }
+  return out;
+}
+
 function drawGutter() {
   const n = $("code").value.split("\n").length;
   const set = marks[current] || new Set();
@@ -54,7 +124,8 @@ function openTab(name) {
   $("code").value = readonly ? lab.scaffold[name] : files[name];
   $("code").readOnly = readonly;
   for (const b of $("tabs").children) b.setAttribute("aria-selected", String(b.dataset.name === name));
-  drawGutter();
+  $("code").scrollTop = $("code").scrollLeft = 0;
+  drawCode();
 }
 
 function drawTabs() {
@@ -93,7 +164,10 @@ async function loadLab(id, fresh) {
   files = { ...starter, ...(draft || {}) };
   marks = {};
   current = "";
-  $("statement").textContent = lab.statement;
+  $("statement").replaceChildren(...inline(lab.statement));
+  $("lesson").hidden = !lab.lesson;
+  $("lesson-body").replaceChildren(...renderLesson(lab.lesson || ""));
+  $("lesson-body").scrollTop = 0;
   $("stdin-box").hidden = lab.mode !== "user";
   $("keys-box").hidden = lab.mode !== "toy";
   $("live").hidden = lab.mode !== "toy";
@@ -344,19 +418,26 @@ async function send(kind) {
 
 async function start() {
   const labs = await api("/labs");
-  $("lab").replaceChildren(...labs.map((l) => h("option", { value: l.id, textContent: l.title })));
+  const groups = new Map();  // lessons of a track stay together, in level order
+  for (const l of labs) {
+    const key = l.track || "Bài lẻ";
+    if (!groups.has(key)) groups.set(key, h("optgroup", { label: key }));
+    groups.get(key).append(h("option", { value: l.id, textContent: l.title }));
+  }
+  $("lab").replaceChildren(...groups.values());
   const last = store.get("lab");
   if (labs.some((l) => l.id === last)) $("lab").value = last;
   await loadLab($("lab").value);
 }
 
-$("code").addEventListener("input", () => { drawGutter(); saveDraft(); });
-$("code").addEventListener("scroll", () => { $("gutter").scrollTop = $("code").scrollTop; });
+$("code").addEventListener("input", () => { drawCode(); saveDraft(); });
+$("code").addEventListener("scroll", syncScroll);
 $("code").addEventListener("keydown", (e) => {
   if (e.key !== "Tab" || e.shiftKey || $("code").readOnly) return;  // Shift+Tab still leaves the editor
   e.preventDefault();
   $("code").setRangeText(current.endsWith(".c") || current.endsWith(".S") ? "\t" : "    ", $("code").selectionStart, $("code").selectionEnd, "end");
-  drawGutter();
+  drawCode();
+  saveDraft();
 });
 $("lab").addEventListener("change", () => { store.set("lab", $("lab").value); loadLab($("lab").value).catch((e) => { $("busy").textContent = e.message; }); });
 $("run").addEventListener("click", () => send("run"));

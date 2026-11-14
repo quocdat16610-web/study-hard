@@ -1,0 +1,108 @@
+{
+ "mode": "toy",
+ "template": "toy-kernel",
+ "track": "Giao diện OS (text mode)",
+ "level": 2,
+ "title": "2. Con trỏ, xuống dòng và in chuỗi",
+ "statement": "Viết `putc` có con trỏ (hàng, cột): xử lý `\\n` và tự xuống dòng khi hết 80 cột. Xoá màn hình, in `Line 1`, `Line 2` trên hai dòng, rồi in 100 chữ `x` liên tiếp.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "tests": [
+  {
+   "id": "boots",
+   "points": 10,
+   "expect": {
+    "serial": "UI OK"
+   },
+   "concept": "serial là kênh gỡ lỗi đầu tiên của mọi kernel: nó hoạt động trước cả khi màn hình được thiết lập"
+  },
+  {
+   "id": "clear",
+   "points": 20,
+   "expect": {
+    "cells": [
+     {
+      "row": 0,
+      "col": 7,
+      "text": "                                        "
+     },
+     {
+      "row": 1,
+      "col": 7,
+      "text": "                                        "
+     },
+     {
+      "row": 4,
+      "col": 0,
+      "text": "                                        "
+     },
+     {
+      "row": 5,
+      "col": 0,
+      "text": "                                        "
+     },
+     {
+      "row": 6,
+      "col": 0,
+      "text": "                                        "
+     }
+    ]
+   },
+   "concept": "kernel thừa hưởng màn hình của BIOS/bootloader; phải tự xoá trước khi vẽ"
+  },
+  {
+   "id": "newline",
+   "points": 35,
+   "expect": {
+    "cells": [
+     {
+      "row": 0,
+      "col": 0,
+      "text": "Line 1 "
+     },
+     {
+      "row": 1,
+      "col": 0,
+      "text": "Line 2 "
+     }
+    ]
+   },
+   "concept": "'\\n' không phải ký tự để vẽ mà là lệnh cho con trỏ: cột về 0, hàng tăng 1"
+  },
+  {
+   "id": "wrap",
+   "points": 35,
+   "expect": {
+    "cells": [
+     {
+      "row": 2,
+      "col": 0,
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     },
+     {
+      "row": 3,
+      "col": 0,
+      "text": "xxxxxxxxxxxxxxxxxxxx "
+     }
+    ]
+   },
+   "concept": "khi cột chạm 80 phải cập nhật cả hàng lẫn cột, nếu không vị trí con trỏ lệch khỏi thực tế"
+  }
+ ]
+}

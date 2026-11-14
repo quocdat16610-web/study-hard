@@ -1,0 +1,152 @@
+{
+ "mode": "toy",
+ "template": "toy-kernel",
+ "track": "Giao diện OS (text mode)",
+ "level": 3,
+ "title": "3. Vẽ khung cửa sổ",
+ "statement": "Viết `window(r, c, h, w, title, a)` vẽ một cửa sổ có viền bằng ký tự khung CP437 và tiêu đề căn giữa trên viền trên. Vẽ nền desktop 0x1F và một cửa sổ tại (5, 20), cao 10, rộng 40, tiêu đề ` Hello `, thuộc tính 0x70.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "tests": [
+  {
+   "id": "boots",
+   "points": 10,
+   "expect": {
+    "serial": "UI OK"
+   },
+   "concept": "serial là kênh gỡ lỗi đầu tiên của mọi kernel: nó hoạt động trước cả khi màn hình được thiết lập"
+  },
+  {
+   "id": "corners",
+   "points": 25,
+   "expect": {
+    "cells": [
+     {
+      "row": 5,
+      "col": 20,
+      "text": "┌"
+     },
+     {
+      "row": 5,
+      "col": 59,
+      "text": "┐"
+     },
+     {
+      "row": 14,
+      "col": 20,
+      "text": "└"
+     },
+     {
+      "row": 14,
+      "col": 59,
+      "text": "┘"
+     }
+    ]
+   },
+   "concept": "góc dưới phải nằm ở (r + h - 1, c + w - 1): lỗi lệch một đơn vị là lỗi phổ biến nhất khi vẽ khung"
+  },
+  {
+   "id": "borders",
+   "points": 25,
+   "expect": {
+    "cells": [
+     {
+      "row": 5,
+      "col": 21,
+      "text": "────────"
+     },
+     {
+      "row": 14,
+      "col": 21,
+      "text": "──────────────────────────────────────"
+     },
+     {
+      "row": 9,
+      "col": 20,
+      "text": "│"
+     },
+     {
+      "row": 9,
+      "col": 59,
+      "text": "│"
+     }
+    ]
+   },
+   "concept": "VGA dùng bảng mã CP437: mã 0xC4 và 0xB3 là nét ngang và nét dọc"
+  },
+  {
+   "id": "body",
+   "points": 20,
+   "expect": {
+    "cells": [
+     {
+      "row": 6,
+      "col": 21,
+      "text": "                                      ",
+      "attr": "70"
+     },
+     {
+      "row": 13,
+      "col": 21,
+      "text": "                                      ",
+      "attr": "70"
+     },
+     {
+      "row": 4,
+      "col": 20,
+      "len": 40,
+      "attr": "1f"
+     },
+     {
+      "row": 9,
+      "col": 19,
+      "len": 1,
+      "attr": "1f"
+     }
+    ]
+   },
+   "concept": "phần ruột phải được tô, vì cửa sổ che nội dung bên dưới bằng chính các ô của nó"
+  },
+  {
+   "id": "title",
+   "points": 20,
+   "expect": {
+    "cells": [
+     {
+      "row": 5,
+      "col": 36,
+      "text": " Hello ",
+      "attr": "70"
+     },
+     {
+      "row": 5,
+      "col": 35,
+      "text": "─"
+     },
+     {
+      "row": 5,
+      "col": 43,
+      "text": "─"
+     }
+    ]
+   },
+   "concept": "căn giữa: cột bắt đầu = c + (w - độ dài tiêu đề) / 2"
+  }
+ ]
+}

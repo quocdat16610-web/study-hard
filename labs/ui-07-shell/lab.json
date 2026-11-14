@@ -1,0 +1,167 @@
+{
+ "mode": "toy",
+ "template": "toy-kernel",
+ "track": "Giao diện OS (text mode)",
+ "level": 7,
+ "title": "7. Shell tí hon",
+ "statement": "Ghép console, cuộn và nhập dòng thành một shell với dấu nhắc `os> `. Lệnh: `help` (in `commands: help echo clear`), `echo <văn bản>`, `clear`. Lệnh lạ in `unknown command: <lệnh>`.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "script": [
+  {
+   "wait": 2
+  },
+  {
+   "keys": [
+    "e",
+    "c",
+    "h",
+    "o",
+    "spc",
+    "h",
+    "i",
+    "ret"
+   ]
+  },
+  {
+   "wait": 0.4
+  },
+  {
+   "snap": "echo"
+  },
+  {
+   "keys": [
+    "h",
+    "e",
+    "l",
+    "p",
+    "ret"
+   ]
+  },
+  {
+   "wait": 0.4
+  },
+  {
+   "snap": "help"
+  },
+  {
+   "keys": [
+    "c",
+    "l",
+    "e",
+    "a",
+    "r",
+    "ret",
+    "f",
+    "o",
+    "o",
+    "ret"
+   ]
+  },
+  {
+   "wait": 1
+  }
+ ],
+ "tests": [
+  {
+   "id": "echo",
+   "points": 30,
+   "expect": {
+    "at": "echo",
+    "cells": [
+     {
+      "row": 0,
+      "col": 0,
+      "text": "os> echo hi "
+     },
+     {
+      "row": 1,
+      "col": 0,
+      "text": "hi "
+     },
+     {
+      "row": 2,
+      "col": 0,
+      "text": "os>  "
+     }
+    ]
+   },
+   "concept": "tách lệnh và tham số: nhận ra tiền tố `echo ` rồi dùng phần còn lại của dòng"
+  },
+  {
+   "id": "help",
+   "points": 20,
+   "expect": {
+    "at": "help",
+    "cells": [
+     {
+      "row": 3,
+      "col": 0,
+      "text": "commands: help echo clear "
+     },
+     {
+      "row": 4,
+      "col": 0,
+      "text": "os>  "
+     }
+    ]
+   },
+   "concept": "so sánh chuỗi trong kernel phải tự viết: đi song song hai chuỗi tới ký tự kết thúc"
+  },
+  {
+   "id": "clear",
+   "points": 25,
+   "expect": {
+    "cells": [
+     {
+      "row": 0,
+      "col": 0,
+      "text": "os> foo "
+     },
+     {
+      "row": 3,
+      "col": 0,
+      "len": 80,
+      "text": "                                                                                "
+     }
+    ]
+   },
+   "concept": "clear phải đặt lại cả con trỏ, nếu không dấu nhắc kế tiếp hiện ở giữa màn hình trống"
+  },
+  {
+   "id": "unknown",
+   "points": 25,
+   "expect": {
+    "cells": [
+     {
+      "row": 1,
+      "col": 0,
+      "text": "unknown command: foo "
+     },
+     {
+      "row": 2,
+      "col": 0,
+      "text": "os>  "
+     }
+    ]
+   },
+   "concept": "giao diện tốt luôn phản hồi: lệnh lạ phải được báo lại thay vì im lặng"
+  }
+ ]
+}

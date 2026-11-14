@@ -1,0 +1,163 @@
+{
+ "mode": "toy",
+ "template": "toy-kernel",
+ "track": "Giao diện OS (text mode)",
+ "level": 6,
+ "title": "6. Menu và phím mũi tên",
+ "statement": "Vẽ thanh tiêu đề `MENU` (hàng 0) và menu ba mục `Open`, `Save`, `Quit` ở hàng 2-4, cột 4. Mục đang chọn tô đảo màu (0x70), mục khác 0x07. Mũi tên lên/xuống đổi mục (đi vòng), Enter ghi `Selected: <mục>` lên thanh trạng thái (hàng 24).",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "script": [
+  {
+   "wait": 2
+  },
+  {
+   "snap": "start"
+  },
+  {
+   "keys": [
+    "down",
+    "down"
+   ]
+  },
+  {
+   "wait": 0.4
+  },
+  {
+   "snap": "moved"
+  },
+  {
+   "keys": [
+    "up",
+    "ret"
+   ]
+  },
+  {
+   "wait": 1
+  }
+ ],
+ "tests": [
+  {
+   "id": "layout",
+   "points": 20,
+   "expect": {
+    "at": "start",
+    "cells": [
+     {
+      "row": 0,
+      "col": 1,
+      "text": "MENU",
+      "attr": "70"
+     },
+     {
+      "row": 0,
+      "col": 79,
+      "len": 1,
+      "attr": "70"
+     },
+     {
+      "row": 2,
+      "col": 4,
+      "text": "Open",
+      "attr": "70"
+     },
+     {
+      "row": 3,
+      "col": 4,
+      "text": "Save",
+      "attr": "07"
+     },
+     {
+      "row": 4,
+      "col": 4,
+      "text": "Quit",
+      "attr": "07"
+     }
+    ]
+   },
+   "concept": "thanh tiêu đề và vệt chọn chỉ là các ô có thuộc tính đảo màu (nền sáng, chữ tối)"
+  },
+  {
+   "id": "move-down",
+   "points": 30,
+   "expect": {
+    "at": "moved",
+    "cells": [
+     {
+      "row": 4,
+      "col": 4,
+      "text": "Quit",
+      "attr": "70"
+     },
+     {
+      "row": 2,
+      "col": 4,
+      "text": "Open",
+      "attr": "07"
+     },
+     {
+      "row": 3,
+      "col": 4,
+      "text": "Save",
+      "attr": "07"
+     }
+    ]
+   },
+   "concept": "phím mũi tên gửi tiền tố 0xE0 rồi mới tới mã phím; phải nhớ trạng thái giữa hai byte"
+  },
+  {
+   "id": "move-up",
+   "points": 20,
+   "expect": {
+    "cells": [
+     {
+      "row": 3,
+      "col": 4,
+      "text": "Save",
+      "attr": "70"
+     },
+     {
+      "row": 4,
+      "col": 4,
+      "text": "Quit",
+      "attr": "07"
+     }
+    ]
+   },
+   "concept": "vẽ lại toàn bộ menu từ trạng thái thay vì sửa từng ô: vệt chọn cũ tự biến mất"
+  },
+  {
+   "id": "select",
+   "points": 30,
+   "expect": {
+    "row": 24,
+    "vga": "Selected: Save",
+    "cells": [
+     {
+      "row": 24,
+      "col": 0,
+      "len": 80,
+      "attr": "70"
+     }
+    ]
+   },
+   "concept": "Enter là make code 0x1C không có tiền tố; thanh trạng thái là nơi giao diện phản hồi người dùng"
+  }
+ ]
+}

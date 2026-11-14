@@ -1,0 +1,78 @@
+{
+ "mode": "toy",
+ "template": "toy-kernel",
+ "track": "Giao diện OS (text mode)",
+ "level": 1,
+ "title": "1. Ô ký tự và màu",
+ "statement": "Tô cả màn hình nền xanh dương (thuộc tính 0x1F), rồi in chữ `OS` màu vàng trên nền xanh (0x1E) tại hàng 12, cột 39. Gửi `UI OK` ra serial khi xong.",
+ "files": {
+  "required": [
+   "kernel.cpp"
+  ],
+  "only": [
+   "kernel.cpp"
+  ],
+  "max_bytes": 32768
+ },
+ "weights": {
+  "compile": 10,
+  "static": 10,
+  "dynamic": 80
+ },
+ "penalties": {
+  "reset": 30,
+  "bad_image": 100
+ },
+ "tests": [
+  {
+   "id": "boots",
+   "points": 10,
+   "expect": {
+    "serial": "UI OK"
+   },
+   "concept": "serial là kênh gỡ lỗi đầu tiên của mọi kernel: nó hoạt động trước cả khi màn hình được thiết lập"
+  },
+  {
+   "id": "background",
+   "points": 40,
+   "expect": {
+    "cells": [
+     {
+      "row": 0,
+      "col": 0,
+      "len": 80,
+      "attr": "1f"
+     },
+     {
+      "row": 24,
+      "col": 0,
+      "len": 80,
+      "attr": "1f"
+     },
+     {
+      "row": 12,
+      "col": 0,
+      "len": 39,
+      "attr": "1f"
+     }
+    ]
+   },
+   "concept": "xoá màn hình = ghi đè cả 2000 ô; byte thuộc tính quyết định màu nền kể cả khi ký tự là dấu cách"
+  },
+  {
+   "id": "text",
+   "points": 50,
+   "expect": {
+    "cells": [
+     {
+      "row": 12,
+      "col": 39,
+      "text": "OS",
+      "attr": "1e"
+     }
+    ]
+   },
+   "concept": "ô (hàng, cột) nằm ở chỉ số hàng * 80 + cột; mỗi ô = (thuộc tính << 8) | ký tự"
+  }
+ ]
+}
