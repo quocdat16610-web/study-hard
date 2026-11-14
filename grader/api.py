@@ -10,7 +10,7 @@ import redis.asyncio as redis
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, Field, StringConstraints
 
-from . import labs, pipeline, queue as q
+from . import feedback, labs, pipeline, queue as q
 from .config import CFG
 
 MAX_BODY = 1 << 20
@@ -52,6 +52,14 @@ async def submit(sub: Submission) -> dict:
 
 @app.get("/submissions/{sid}", dependencies=[Depends(guard)])
 async def status(sid: str) -> dict:
+    if not pipeline.ID.fullmatch(sid) or (raw := await db.get(q.result(sid))) is None:
+        raise HTTPException(404)
+    return feedback.public(json.loads(raw))
+
+
+@app.get("/submissions/{sid}/report", dependencies=[Depends(guard)])
+async def full_report(sid: str) -> dict:
+    """Instructor view: every stage, log and raw run. Never forward this to students."""
     if not pipeline.ID.fullmatch(sid) or (raw := await db.get(q.result(sid))) is None:
         raise HTTPException(404)
     return json.loads(raw)

@@ -21,6 +21,9 @@ def test_user_bad_gets_line_accurate_findings_and_low_score(sandbox):
     rules = {(d["rule"], d["line"]) for s in r["stages"].values() for d in s["diags"]}
     assert {("rule:no-raw-new", 7), ("rule:unsafe-cstr", 9), ("asan:heap-buffer-overflow", 13)} <= rules
     assert all(t["reason"] == "sanitizer" for t in r["tests"]) and 10 <= r["score"]["score"] <= 20
+    top = r["feedback"]["items"][0]
+    assert (top["title"], top["line"], top["code"]) == ("Truy cập ngoài vùng nhớ heap", 13, "sum += a[i];")
+    assert r["feedback"]["retry"] == {"label": "Thử sửa ngay", "file": "main.cpp", "line": 13, "col": 16}
 
 
 def test_user_compile_error(sandbox):
@@ -56,6 +59,8 @@ def test_chardev_partial_credit(kernel):
     r = grade("kmod-chardev", **{"student.c": "kmod-chardev/no_eof.c"})
     by = {t["id"]: t["passed"] for t in r["tests"]}
     assert by["load"] and by["node"] and not by["eof"] and not by["roundtrip"] and by["unload"]
+    eof = next(t for t in r["feedback"]["tests"] if t["id"] == "eof")
+    assert "ppos" in eof["concept"] and "bị treo" in eof["message"]
     assert 25 < r["score"]["score"] < 60
 
 
@@ -63,4 +68,5 @@ def test_chardev_heap_overflow_is_penalised(kernel):
     r = grade("kmod-chardev", **{"student.c": "kmod-chardev/overflow.c"})
     assert r["stages"]["dynamic"]["data"]["failure"]["kind"] == "slab"
     assert r["score"]["penalties"][0]["kind"] == "panic" and r["score"]["score"] <= 55
+    assert r["feedback"]["items"][0]["title"] == "Làm hỏng heap của kernel"
     assert not list((kernel.qemu_root / "runtimes").iterdir())

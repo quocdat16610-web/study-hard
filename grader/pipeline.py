@@ -1,4 +1,4 @@
-"""One submission, start to finish: pre-check -> compile -> static -> dynamic -> verdicts -> score."""
+"""One submission, start to finish: pre-check -> compile -> static -> dynamic -> verdicts -> score -> feedback."""
 from __future__ import annotations
 
 import json
@@ -8,7 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import compiler, dynamic, harness, labs, precheck, scoring, static
+from . import compiler, dynamic, feedback, harness, labs, precheck, scoring, static
 from .config import CFG
 from .sandbox.container import own
 
@@ -28,7 +28,7 @@ def grade(sub: dict) -> dict:
     stages["precheck"] = pre = precheck.check(lab, files)
     if not pre.ok:
         report["status"] = "rejected"
-        return _finish(lab, report)
+        return _finish(lab, report, files)
     work = CFG.work_root / sid
     work.mkdir(mode=0o700)
     try:
@@ -48,19 +48,23 @@ def grade(sub: dict) -> dict:
         report |= {"status": "infra_error", "error": f"{type(e).__name__}: {e}"[:500]}
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    return _finish(lab, report)
+    return _finish(lab, report, files)
 
 
-def _finish(lab: dict, report: dict) -> dict:
+def _finish(lab: dict, report: dict, files: dict[str, str]) -> dict:
     report["stages"] = {k: v.json() for k, v in report["stages"].items()}
     if report["status"] != "infra_error":  # infrastructure failures are never scored
         report["tests"] = harness.evaluate(lab, report["stages"].get("dynamic"))
         report["score"] = scoring.score(lab, report, report["tests"])
+    report["feedback"] = feedback.build(lab, report, files)
     return report
 
 
-if __name__ == "__main__":  # python -m grader.pipeline <lab> <file>... : grade locally, no queue
+if __name__ == "__main__":  # python -m grader.pipeline [--text] <lab> <file>... : grade locally, no queue
     import uuid
-    paths = [Path(p) for p in sys.argv[2:]]
-    json.dump(grade({"id": uuid.uuid4().hex, "lab": sys.argv[1],
-                     "files": {p.name: p.read_text() for p in paths}}), sys.stdout, ensure_ascii=False, indent=1)
+    args = [a for a in sys.argv[1:] if a != "--text"]
+    res = grade({"id": uuid.uuid4().hex, "lab": args[0], "files": {Path(p).name: Path(p).read_text() for p in args[1:]}})
+    if "--text" in sys.argv:
+        print(feedback.render(res["feedback"]))
+    else:
+        json.dump(res, sys.stdout, ensure_ascii=False, indent=1)
