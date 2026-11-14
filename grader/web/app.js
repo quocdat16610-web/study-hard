@@ -270,7 +270,7 @@ function show(r) {
 }
 
 // ---- live session (toy kernels) -----------------------------------------------------------
-const NAMED = { Enter: "ret", Backspace: "backspace", Escape: "esc", " ": "spc", ArrowUp: "up", ArrowDown: "down",
+const NAMED = { Tab: "tab", Enter: "ret", Backspace: "backspace", Escape: "esc", " ": "spc", ArrowUp: "up", ArrowDown: "down",
   ArrowLeft: "left", ArrowRight: "right", "-": "minus", "=": "equal", ",": "comma", ".": "dot", "/": "slash",
   ";": "semicolon", "'": "apostrophe", "[": "bracket_left", "]": "bracket_right", "\\": "backslash", "`": "grave_accent" };
 const SHIFTED = { _: "minus", "+": "equal", "<": "comma", ">": "dot", "?": "slash", ":": "semicolon", '"': "apostrophe",
@@ -315,7 +315,7 @@ async function startLive() {
   const view = h("div", {});
   const serialOut = h("pre", { className: "out", textContent: "(trống)" });
   const extra = h("div", {});
-  $("result").replaceChildren(bar, view, h("p", { className: "hint", textContent: "Bấm vào màn hình rồi gõ phím để gửi vào kernel. Trên điện thoại: nhập vào ô “Phím gõ” rồi nhấn Enter." }),
+  $("result").replaceChildren(bar, view, h("p", { className: "hint", textContent: "Bấm vào màn hình rồi gõ phím để gửi vào kernel (kể cả Tab và mũi tên); Shift+Tab để rời khỏi màn hình. Trên điện thoại: nhập vào ô “Phím gõ” rồi nhấn Enter." }),
     h("h3", { textContent: "Cổng serial (COM1)" }), serialOut, extra);
   let id;
   try {
@@ -346,9 +346,10 @@ async function startLive() {
           wrap = fresh;
           wrap.tabIndex = 0;
           wrap.setAttribute("role", "application");
-          wrap.setAttribute("aria-label", "Màn hình kernel đang chạy. Gõ phím để gửi vào kernel.");
+          wrap.setAttribute("aria-label", "Màn hình kernel đang chạy. Gõ phím để gửi vào kernel. Shift+Tab để rời khỏi màn hình.");
           wrap.addEventListener("keydown", (e) => {
-            if (e.ctrlKey || e.metaKey || e.altKey || e.key === "Tab") return;  // browser shortcuts and focus keep working
+            if (e.ctrlKey || e.metaKey || e.altKey) return;  // browser shortcuts keep working
+            if (e.key === "Tab" && e.shiftKey) return;  // Shift+Tab is the way out: plain Tab goes to the kernel
             const k = qcode(e.key);
             if (k) { e.preventDefault(); typeKeys([k]); }
           });
