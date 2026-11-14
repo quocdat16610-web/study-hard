@@ -155,16 +155,18 @@ def build(lab: dict, report: dict, files: dict[str, str]) -> dict:
     uniq = list({(i["file"], i["line"], i["title"]): i for i in items}.values())
     specs = {t["id"]: t for t in lab["tests"]}
     tests = [_test(lab, v, specs[v["id"]]) for v in report.get("tests", [])]
-    score = report["score"]
-    lead = M.STATUS.get(status) or M.STATUS["passed" if score["passed"] and not uniq and score["score"] == 100
-                                            else "passed" if score["score"] == 100 else "partial"]
-    summary = (f"{lead} Điểm: {score['score']:g}/100 ({'đạt' if score['passed'] else 'chưa đạt'}), "
-               f"qua {score['tests_passed']}/{score['tests_total']} test.")
-    for p in score["penalties"]:
+    score = report.get("score")
+    if score is None:  # ungraded try-run
+        summary = M.STATUS.get(status) or (M.STATUS["run_issues"] if uniq else M.STATUS["run_ok"])
+    else:
+        lead = M.STATUS.get(status) or M.STATUS["passed" if score["score"] == 100 else "partial"]
+        summary = (f"{lead} Điểm: {score['score']:g}/100 ({'đạt' if score['passed'] else 'chưa đạt'}), "
+                   f"qua {score['tests_passed']}/{score['tests_total']} test.")
+    for p in score["penalties"] if score else []:
         cause = p["cause"] if p.get("cause") in M.KERNEL else p["kind"]
         summary += f" Bị trừ {p['cost']}% phần chạy thử vì: {M.KERNEL[cause][0].lower()}."
     focus = next((i["action"] for i in uniq if "action" in i), None)
-    if focus is None and score["score"] < 100 and files:
+    if focus is None and score and score["score"] < 100 and files:
         focus = {"label": M.FIX, "file": next(iter(files)), "line": 1, "col": 1}
     return {"summary": summary, "items": uniq[:MAX_ITEMS], "more": max(0, len(uniq) - MAX_ITEMS), "tests": tests,
             "next_steps": _steps(status, uniq, tests, sum(i["stage"] == "static" for i in uniq)), "retry": focus}
@@ -173,7 +175,8 @@ def build(lab: dict, report: dict, files: dict[str, str]) -> dict:
 def public(report: dict) -> dict:
     """The student-facing view: no logs, no hidden-test data, no infrastructure details."""
     score = report.get("score")
-    return {"id": report["id"], "lab": report.get("lab"), "status": report["status"],
+    return {"id": report["id"], "lab": report.get("lab"), "kind": report.get("kind", "grade"),
+            "status": report["status"], "preview": report.get("preview"),
             "score": score and {k: score[k] for k in ("score", "max", "passed", "components", "tests_passed", "tests_total")},
             "feedback": report.get("feedback") or {"summary": M.STATUS.get(report["status"], ""), "items": [],
                                                     "tests": [], "next_steps": [], "retry": None, "more": 0}}

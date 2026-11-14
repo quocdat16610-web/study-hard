@@ -139,7 +139,7 @@ def _drive(box: Box, rt: Path, script: list[dict]) -> bool:
         return False
 
 
-def run(sid: str, tpl: str, artifact: Path) -> dict:
+def run(sid: str, tpl: str, artifact: Path, script: list[dict] | None = None) -> dict:
     d, vm = _spec(tpl)
     toy = vm["mode"] == "toy"
     rt = _runtime(sid)
@@ -155,7 +155,7 @@ def run(sid: str, tpl: str, artifact: Path) -> dict:
         nonce = secrets.token_hex(16)
         snap = None if toy or not _snap(vm).exists() else _snap(vm)
         with _box(vm, rt, nonce, qmp=toy, incoming=snap) as box:
-            alive = _drive(box, rt, vm.get("script", [])) if toy else False
+            alive = _drive(box, rt, script or vm.get("script", [])) if toy else False
             r = box.wait()
         raw = (rt / "serial.log").read_bytes()[-LOG_CAP:] if (rt / "serial.log").exists() else b""
         log = raw.decode("utf-8", "replace")
@@ -169,7 +169,8 @@ def run(sid: str, tpl: str, artifact: Path) -> dict:
         elif toy:
             vga = rt / "vga.bin"
             out |= {"status": "ok" if alive or r.exit_code & 1 else "hang" if r.timed_out else "reset",
-                    "vga": serial.vga_text(vga.read_bytes()) if vga.exists() else None}
+                    "vga": serial.vga_text(vga.read_bytes()) if vga.exists() else None,
+                    "vga_attr": serial.vga_attrs(vga.read_bytes()) if vga.exists() else None}
         else:
             tests, done = serial.parse(log, nonce)
             fail = serial.failure(log)

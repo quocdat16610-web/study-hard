@@ -41,6 +41,11 @@ def failure(log: str) -> dict | None:
             "frames": [{"fn": f, "off": o, "mod": m} for f, o, m in frames]}
 
 
+def vga_attrs(raw: bytes) -> list[str]:
+    """Attribute byte of each cell (low nibble = foreground, high = background), 160 hex chars per row."""
+    return [raw[1:4000:2][i:i + 80].hex() for i in range(0, 2000, 80)]
+
+
 def vga_text(raw: bytes) -> list[str]:
     chars = raw[0:4000:2].decode("cp437", "replace")
     return [chars[i:i + 80].rstrip("\x00 ") for i in range(0, 2000, 80)]

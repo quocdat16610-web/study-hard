@@ -32,7 +32,7 @@ def main() -> None:
             shutil.rmtree(stale, ignore_errors=True)
     log.info("worker %s ready", CFG.worker_id)
     while not stop:
-        if not (sid := r.blmove(q.QUEUE, mine, 2, "RIGHT", "LEFT")):
+        if not (sid := r.lmove(q.RUN_QUEUE, mine, "RIGHT", "LEFT") or r.blmove(q.QUEUE, mine, 1, "RIGHT", "LEFT")):
             continue
         try:
             raw = r.get(q.job(sid))
@@ -44,7 +44,8 @@ def main() -> None:
                 r.expire(q.tries(sid), q.TTL)
                 r.set(q.result(sid), json.dumps({"id": sid, "status": "running"}), ex=q.TTL)
                 try:
-                    report = pipeline.grade(json.loads(raw) | {"id": sid})
+                    job = json.loads(raw) | {"id": sid}
+                    report = pipeline.try_run(job) if job.get("kind") == "run" else pipeline.grade(job)
                 except Exception as e:
                     log.exception("job %s", sid)
                     report = {"id": sid, "status": "infra_error", "error": type(e).__name__}

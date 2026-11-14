@@ -26,14 +26,16 @@ def sanitizer_diags(err: str, files: set[str]) -> list[Diag]:
     return out
 
 
-def run(lab: dict, work: Path, sid: str, files: set[str]) -> Stage:
+def run(lab: dict, work: Path, sid: str, files: set[str], tests: list[dict] | None = None,
+        script: list[dict] | None = None) -> Stage:
+    """Grading uses the lab's tests; a try-run passes its own single test (user) or key script (toy)."""
     if lab["mode"] != "user":
-        res = qemu.run(sid, lab["template"], work / lab["vm"]["artifact"])
+        res = qemu.run(sid, lab["template"], work / lab["vm"]["artifact"], script)
         if res["status"] == "infra_error":
             raise RuntimeError(f"qemu: {res['qemu_stderr'][-300:]}")
         return Stage(res["status"] == "ok", [], res)
     lim, runs, diags = Limits(**({"timeout": 2, "pids": 32, "out_cap": CAP} | lab.get("limits", {}))), [], []
-    for t in lab["tests"]:
+    for t in lab["tests"] if tests is None else tests:
         r = user.run(work, ["./prog", *t.get("args", [])], stdin=t.get("stdin", "").encode(), lim=lim)
         err = r.stderr.decode("utf-8", "replace")
         found = sanitizer_diags(err, files)

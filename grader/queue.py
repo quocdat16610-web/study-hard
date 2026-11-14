@@ -1,5 +1,6 @@
 """Redis keys shared by API and worker. Queue holds ids only; payloads and results expire on their own."""
 QUEUE = "grader:queue"
+RUN_QUEUE = "grader:queue:run"  # try-runs: interactive, served first
 TTL = 24 * 3600
 MAX_QUEUED = 500
 MAX_TRIES = 2

@@ -248,5 +248,7 @@ STATUS = {
     "compile_error": "Bài chưa biên dịch được. Hãy sửa lỗi đầu tiên trước, các lỗi sau thường là hệ quả.",
     "infra_error": "Hệ thống chấm gặp sự cố. Bài của bạn chưa được chấm và không bị trừ điểm; hãy nộp lại sau ít phút.",
     "passed": "Bài đạt yêu cầu.",
+    "run_ok": "Đã chạy thử xong (không chấm điểm).",
+    "run_issues": "Đã chạy thử (không chấm điểm) và phát hiện vấn đề bên dưới.",
     "partial": "Bài chạy được nhưng chưa đạt hết yêu cầu.",
 }
