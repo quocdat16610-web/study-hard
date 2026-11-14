@@ -156,6 +156,9 @@ def _drive(box: Box, rt: Path, script: list[dict], gfx: bool) -> bool:
                 time.sleep(0.05)
             if "mouse" in step:
                 _mouse(q, int(step["mouse"][0]), int(step["mouse"][1]))
+            if "button" in step and step["button"][0] in ("left", "right", "middle"):  # press or release only
+                _button(q, step["button"][0], bool(step["button"][1]))
+                time.sleep(0.08)
             if step.get("click") in ("left", "right", "middle"):
                 _button(q, step["click"], True)
                 time.sleep(0.08)

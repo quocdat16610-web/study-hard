@@ -582,6 +582,92 @@ extern "C" void kmain() {
          "concept": "hit testing đi từ trên xuống: click vào vùng chồng nhau thuộc về cửa sổ đang ở trên"},
     ])
 
+# ------------------------------------------------------------------ 7
+DRAG_SCRIPT = [{"wait": 2}, {"snap": "start"},
+               {"mouse": [-100, -74]}, {"wait": 0.3}, {"button": ["left", True]}, {"mouse": [50, 30]}, {"wait": 0.3}, {"button": ["left", False]}, {"wait": 0.4}, {"snap": "dragged"},
+               {"mouse": [0, 40]}, {"wait": 0.3}, {"button": ["left", True]}, {"mouse": [30, 20]}, {"wait": 0.3}, {"button": ["left", False]}, {"wait": 0.4}, {"snap": "body"},
+               {"mouse": [75, -50]}, {"wait": 0.3}, {"button": ["left", True]}, {"mouse": [-100, 40]}, {"wait": 0.3}, {"button": ["left", False]}, {"wait": 0.4}, {"snap": "lower"},
+               {"mouse": [20, 20]}, {"wait": 0.8}]
+DESKTOP_STARTER = (repo / "tests/fixtures/gfx/gfx-06-desktop.cpp").read_text()
+LABS["gfx-07-drag"] = dict(
+    title="7. Kéo thả cửa sổ",
+    statement="Mở rộng desktop của bài 6: nhấn giữ nút trái trên **thanh tiêu đề** của một cửa sổ (hàng viền trên và 12 hàng tiêu đề) rồi rê chuột thì cửa sổ đi theo con trỏ, giữ nguyên điểm đã nắm; nhả nút thì dừng. Nhấn vào cửa sổ nào thì cửa sổ đó nổi lên trên (kể cả khi bắt đầu kéo). Nhấn trong phần thân không làm cửa sổ di chuyển. Cửa sổ được phép ra ngoài mép màn hình.",
+    script=DRAG_SCRIPT,
+    lesson="""# Kéo thả là một máy trạng thái
+
+Click (bài 6) là một khoảnh khắc. Kéo thả thì kéo dài qua nhiều gói tin chuột, nên kernel phải **nhớ** mình đang ở giữa một thao tác:
+
+```
+          nhấn trên thanh tiêu đề
+  RẢNH  ------------------------->  ĐANG KÉO cửa sổ k
+        <-------------------------
+                nhả nút
+```
+
+- Ở trạng thái RẢNH, chuột di chuyển chỉ làm con trỏ đi.
+- Ở trạng thái ĐANG KÉO, mỗi lần chuột di chuyển thì cửa sổ k đi theo.
+
+Trạng thái này chỉ cần một biến: chỉ số cửa sổ đang kéo, hoặc -1 khi rảnh.
+
+# Giữ nguyên điểm đã nắm
+
+Nếu gán thẳng `win.x = cx`, góc trên trái của cửa sổ sẽ nhảy tới con trỏ ngay khi bắt đầu kéo. Người dùng nắm cửa sổ ở đâu thì điểm đó phải ở dưới con trỏ suốt quá trình.
+
+Lúc nhấn nút, ghi lại **độ lệch** giữa con trỏ và gốc cửa sổ:
+
+```
+grab_x = cx - win.x        grab_y = cy - win.y
+```
+
+Trong khi kéo, đặt lại gốc cửa sổ sao cho độ lệch đó không đổi:
+
+```
+win.x = cx - grab_x        win.y = cy - grab_y
+```
+
+# Kéo từ đâu
+
+Chỉ thanh tiêu đề mới là "tay nắm": hàng viền trên cùng và 12 hàng tiêu đề, tức `cy < win.y + 13`. Nhấn trong thân cửa sổ vẫn đưa nó lên trên (như bài 6) nhưng không bắt đầu kéo — phần thân dành cho nội dung của ứng dụng.
+
+Thứ tự hit testing vẫn như bài 6: cửa sổ trên trước, cửa sổ dưới sau.
+
+# Vì sao bài 2 quan trọng
+
+Cửa sổ giờ có thể bị kéo ra ngoài mép màn hình, toạ độ có thể âm. Mọi thứ vẫn đúng vì `fill_rect` đã cắt xén từ bài 2, và mỗi khung hình được dựng lại từ đầu trong back buffer nên không để lại vệt.
+
+# Việc cần làm
+
+Mã khởi đầu là desktop hoàn chỉnh của bài 6. Hãy thêm:
+
+1. Biến trạng thái kéo và độ lệch điểm nắm.
+2. Ở cạnh lên của nút trái: tìm cửa sổ bị nhấn, đưa nó lên trên, và nếu nhấn trên thanh tiêu đề thì bắt đầu kéo.
+3. Khi nút nhả: kết thúc kéo.
+4. Khi đang kéo: cập nhật vị trí cửa sổ trước khi `compose()`.
+
+Dùng **Chạy trực tiếp**: nhấn giữ trên thanh tiêu đề rồi rê chuột.
+
+Câu hỏi để nghĩ thêm: nếu kéo cửa sổ ra hẳn ngoài màn hình thì làm sao lấy lại? Các hệ điều hành thật luôn giữ một phần thanh tiêu đề trong màn hình.
+""",
+    starter=DESKTOP_STARTER.replace(
+        "        if (down && !was_down && !inside(wins[top], cx, cy) && inside(wins[1 - top], cx, cy)) top = 1 - top;\n",
+        "        if (down && !was_down && !inside(wins[top], cx, cy) && inside(wins[1 - top], cx, cy)) top = 1 - top;\n"
+        "        // TODO: nhấn trên thanh tiêu đề (cy < win.y + 13) bắt đầu kéo và ghi lại điểm nắm;\n"
+        "        //       nhả nút thì dừng; khi đang kéo, cửa sổ đi theo con trỏ (win.x = cx - grab_x, ...)\n"),
+    tests=[
+        {"id": "initial", "points": 10, "expect": {"at": "start", "size": [320, 200], "pixels": px((20, 20, "000000"), (90, 26, "000080"), (200, 66, "808080")), "rects": [rect(160, 100, 5, 5, "ffffff")]},
+         "concept": "trước khi có thao tác nào, desktop giống hệt bài 6"},
+        {"id": "drag", "points": 30, "expect": {"at": "dragged", "pixels": px((70, 50, "000000"), (140, 56, "000080"), (209, 139, "000000"), (25, 25, "008080"), (60, 26, "008080"), (230, 100, "c0c0c0"), (220, 66, "808080")),
+                                                "rects": [rect(110, 56, 5, 5, "ffffff")]},
+         "concept": "khi nhấn, ghi lại độ lệch giữa con trỏ và gốc cửa sổ; khi kéo, giữ độ lệch đó không đổi"},
+        {"id": "body-does-not-drag", "points": 20, "expect": {"at": "body", "pixels": px((70, 50, "000000"), (140, 56, "000080"), (69, 50, "008080"), (100, 70, "c0c0c0")), "rects": [rect(140, 116, 5, 5, "ffffff")]},
+         "concept": "chỉ thanh tiêu đề là tay nắm; nhấn trong thân không được bắt đầu kéo"},
+        {"id": "drag-lower-window", "points": 25, "expect": {"at": "lower", "pixels": px((0, 100, "000000"), (60, 106, "000080"), (139, 189, "000000"), (150, 56, "808080"), (230, 100, "008080"), (205, 130, "c0c0c0")),
+                                                             "rects": [rect(115, 106, 5, 5, "ffffff")]},
+         "concept": "nhấn vào cửa sổ nằm dưới vừa đưa nó lên trên vừa có thể bắt đầu kéo, trong cùng một lần nhấn"},
+        {"id": "release", "points": 15, "expect": {"pixels": px((0, 100, "000000"), (60, 106, "000080"), (140, 150, "008080"), (117, 108, "000080")), "rects": [rect(135, 126, 5, 5, "ffffff")]},
+         "concept": "nhả nút kết thúc thao tác: sau đó chuột di chuyển không còn kéo theo cửa sổ"},
+    ])
+
 for level, (lab_id, lab) in enumerate(LABS.items(), 1):
     d = repo / "labs" / lab_id
     for sub in ("starter", "scaffold"):
